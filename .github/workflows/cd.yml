@@ -1,0 +1,47 @@
+name: CD - ARC Test
+
+on:
+  workflow_dispatch:
+
+env:
+  KUBE_LATEST_VERSION: "v1.36.0"
+  HELM_VERSION: "v4.1.3"
+
+jobs:
+  test:
+    name: Test ARC Runner
+    runs-on: arc-runner-set
+
+    steps:
+      - name: Test runner
+        run: |
+          echo "runner ok"
+          uname -a
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check workspace
+        run: |
+          echo "Workspace: $GITHUB_WORKSPACE"
+          pwd
+          ls -la
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: ${{ env.KUBE_LATEST_VERSION }}
+
+      - name: Check kubectl
+        run: |
+          kubectl version --client
+          which kubectl
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Check Helm
+        run: |
+          helm version
