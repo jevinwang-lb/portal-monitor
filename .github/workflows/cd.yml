@@ -63,3 +63,14 @@ jobs:
 
           echo "== portal-monitor ns =="
           kubectl get ns portal-monitor
+
+      - name: Check deployment permissions
+        run: |
+          echo "== namespace =="
+          kubectl get ns portal-monitor
+
+          echo ""
+          echo "== existing resources =="
+          kubectl get configmap -n portal-monitor
+          kubectl get secret -n portal-monitor
+          kubectl get pvc -n portal-monitor
