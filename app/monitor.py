@@ -341,80 +341,64 @@ def build_report_url(domain):
 # Parse Google result
 # ============================================================
 
+# Transparency Report uses more than one unsafe phrasing.
+# Whole-site:
+#   "This site is unsafe"
+# Partial / mixed site (testsafebrowsing etc.):
+#   "Some pages on this site are unsafe"
+#   "contains harmful content"
+
+UNSAFE_PATTERNS = [
+    "this site is unsafe",
+    "site is unsafe",
+    "some pages on this site are unsafe",
+    "pages on this site are unsafe",
+    "contains harmful content",
+]
+
+SAFE_PATTERNS = [
+    "no unsafe content found",
+    "no issues found",
+    "this site is safe",
+]
+
+NO_DATA_PATTERNS = [
+    "no available data",
+]
+
+UNKNOWN_PATTERNS = [
+    "it's hard to provide a simple safety status",
+    "it’s hard to provide a simple safety status",
+]
+
+
 def parse_status(body_text):
 
     body_lower = body_text.lower()
 
-    # --------------------------------------------------------
-    # UNSAFE
-    # --------------------------------------------------------
-
-    unsafe_patterns = [
-        "this site is unsafe",
-        "site is unsafe",
-    ]
-
-    for pattern in unsafe_patterns:
+    for pattern in UNSAFE_PATTERNS:
 
         if pattern in body_lower:
 
             return "UNSAFE"
 
-
-    # --------------------------------------------------------
-    # SAFE
-    # --------------------------------------------------------
-
-    safe_patterns = [
-        "no unsafe content found",
-        "no issues found",
-        "this site is safe",
-    ]
-
-    for pattern in safe_patterns:
+    for pattern in SAFE_PATTERNS:
 
         if pattern in body_lower:
 
             return "SAFE"
 
+    for pattern in NO_DATA_PATTERNS:
 
-    # --------------------------------------------------------
-    # NO_DATA
-    #
-    # Example:
-    # www.baidu.com
-    # Current status: No available data
-    # --------------------------------------------------------
+        if pattern in body_lower:
 
-    if "no available data" in body_lower:
+            return "NO_DATA"
 
-        return "NO_DATA"
-
-
-    # --------------------------------------------------------
-    # UNKNOWN
-    #
-    # Google explicitly cannot provide a simple site-wide
-    # status for some large sites.
-    # --------------------------------------------------------
-
-    unknown_patterns = [
-        (
-            "it's hard to provide a simple "
-            "safety status"
-        ),
-        (
-            "it’s hard to provide a simple "
-            "safety status"
-        ),
-    ]
-
-    for pattern in unknown_patterns:
+    for pattern in UNKNOWN_PATTERNS:
 
         if pattern in body_lower:
 
             return "UNKNOWN"
-
 
     return "UNKNOWN"
 
@@ -506,54 +490,37 @@ def save_debug(
 
 def wait_for_google_result(page):
 
+    patterns = (
+        UNSAFE_PATTERNS
+        + SAFE_PATTERNS
+        + NO_DATA_PATTERNS
+        + UNKNOWN_PATTERNS
+    )
+
+    js_patterns = json.dumps(
+        patterns
+    )
+
     try:
 
         page.wait_for_function(
-            """
-            () => {
+            f"""
+            () => {{
                 const body = document.body;
 
-                if (!body) {
+                if (!body) {{
                     return false;
-                }
+                }}
 
                 const text =
                     body.innerText.toLowerCase();
 
-                return (
-                    text.includes(
-                        "this site is unsafe"
-                    )
-                    ||
-                    text.includes(
-                        "site is unsafe"
-                    )
-                    ||
-                    text.includes(
-                        "this site is safe"
-                    )
-                    ||
-                    text.includes(
-                        "no unsafe content found"
-                    )
-                    ||
-                    text.includes(
-                        "no issues found"
-                    )
-                    ||
-                    text.includes(
-                        "no available data"
-                    )
-                    ||
-                    text.includes(
-                        "it's hard to provide a simple safety status"
-                    )
-                    ||
-                    text.includes(
-                        "it’s hard to provide a simple safety status"
-                    )
+                const patterns = {js_patterns};
+
+                return patterns.some(
+                    (pattern) => text.includes(pattern)
                 );
-            }
+            }}
             """,
             timeout=RESULT_TIMEOUT_MS,
         )
