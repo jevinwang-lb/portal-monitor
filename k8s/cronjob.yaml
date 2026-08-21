@@ -1,9 +1,11 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: portal-safe-browsing-monitor
+  name: portal-monitor
+  namespace: portal-monitor
+
 spec:
-  schedule: "*/5 * * * *"
+  schedule: "*/10 * * * *"
 
   concurrencyPolicy: Forbid
 
@@ -15,15 +17,36 @@ spec:
       backoffLimit: 1
 
       template:
+        metadata:
+          labels:
+            app: portal-monitor
+
         spec:
           restartPolicy: Never
 
           containers:
-            - name: monitor
+            - name: portal-monitor
 
-              image: YOUR_REGISTRY/portal-monitor:1.0.0
+              image: jevinwanglb/portal-monitor:v1.0.0
+
+              imagePullPolicy: IfNotPresent
 
               env:
+                - name: DOMAINS_FILE
+                  value: /app/domains.txt
+
+                - name: STATE_FILE
+                  value: /data/status.json
+
+                - name: PLAYWRIGHT_HEADLESS
+                  value: "true"
+
+                - name: IGNORE_HTTPS_ERRORS
+                  value: "false"
+
+                - name: WEBHOOK_VERIFY_TLS
+                  value: "true"
+
                 - name: ALERT_WEBHOOK_URL
                   valueFrom:
                     secretKeyRef:
@@ -34,12 +57,21 @@ spec:
                 - name: domains
                   mountPath: /app/domains.txt
                   subPath: domains.txt
+                  readOnly: true
 
                 - name: state
                   mountPath: /data
 
-          volumes:
+              resources:
+                requests:
+                  cpu: "100m"
+                  memory: "256Mi"
 
+                limits:
+                  cpu: "1000m"
+                  memory: "1Gi"
+
+          volumes:
             - name: domains
               configMap:
                 name: portal-monitor-config
