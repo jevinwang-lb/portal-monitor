@@ -7,3 +7,6 @@ data:
     portal.boruxa.com
     bilibili.com
     www.baidu.com
+    testsafebrowsing.appspot.com/apiv4/ANY_PLATFORM/MALWARE/URL/
+    testsafebrowsing.appspot.com/apiv4/ANY_PLATFORM/SOCIAL_ENGINEERING/URL/
+    testsafebrowsing.appspot.com/apiv4/ANY_PLATFORM/UNWANTED_SOFTWARE/URL/

@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Portal Monitor 仓库说明</title>
+  <style>
+    :root {
+      --bg: #f4f1ea;
+      --paper: #fffcf6;
+      --ink: #1c1915;
+      --muted: #5c564c;
+      --line: #d9d0c3;
+      --accent: #b45309;
+      --safe: #166534;
+      --unsafe: #b91c1c;
+      --warn: #a16207;
+      --neutral: #57534e;
+      --code: #2b241c;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans", "Noto Sans SC", "PingFang SC", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.65;
+    }
+    header {
+      border-bottom: 1px solid var(--line);
+      background: var(--paper);
+      padding: 2.5rem 1.5rem 2rem;
+    }
+    header .wrap, main, nav.toc { max-width: 880px; margin: 0 auto; }
+    h1 { font-size: 1.85rem; font-weight: 650; letter-spacing: -0.03em; margin: 0 0 0.5rem; }
+    .lede { color: var(--muted); font-size: 1.05rem; margin: 0; max-width: 42rem; }
+    nav.toc {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 1.25rem;
+      padding: 0.9rem 1.5rem;
+      font-size: 0.88rem;
+    }
+    nav.toc a { color: var(--accent); text-decoration: none; }
+    nav.toc a:hover { text-decoration: underline; }
+    main { padding: 0 1.5rem 4rem; }
+    section { padding-top: 2.25rem; }
+    h2 {
+      font-size: 1.25rem;
+      margin: 0 0 0.85rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 1px solid var(--line);
+    }
+    h3 { font-size: 1.02rem; margin: 1.4rem 0 0.5rem; }
+    p { margin: 0.7rem 0; }
+    .callout {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      padding: 0.95rem 1.1rem;
+      margin: 1rem 0;
+    }
+    .flow {
+      display: grid;
+      gap: 0.45rem;
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 0.82rem;
+      background: var(--code);
+      color: #f5efe6;
+      padding: 1.1rem 1.15rem;
+      overflow-x: auto;
+      margin: 1rem 0;
+    }
+    .flow span { opacity: 0.55; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+      background: var(--paper);
+      margin: 0.9rem 0 1.2rem;
+    }
+    th, td {
+      text-align: left;
+      padding: 0.55rem 0.7rem;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+    th { font-weight: 600; color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    code, .mono {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 0.86em;
+    }
+    code {
+      background: #ece6db;
+      padding: 0.08em 0.35em;
+    }
+    .badge {
+      display: inline-block;
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      padding: 0.12rem 0.45rem;
+      border: 1px solid currentColor;
+    }
+    .safe { color: var(--safe); }
+    .unsafe { color: var(--unsafe); }
+    .warn { color: var(--warn); }
+    .neutral { color: var(--neutral); }
+    ul { padding-left: 1.2rem; }
+    li { margin: 0.28rem 0; }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.85rem;
+      margin: 1rem 0;
+    }
+    @media (max-width: 700px) {
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+    .card {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      padding: 0.9rem 1rem;
+    }
+    .card h3 { margin-top: 0; }
+    footer {
+      color: var(--muted);
+      font-size: 0.85rem;
+      padding: 0 1.5rem 2.5rem;
+      max-width: 880px;
+      margin: 0 auto;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>Portal Safe Browsing Monitor</h1>
+      <p class="lede">
+        定时用浏览器打开 Google Safe Browsing Transparency Report，
+        检查配置域名是否被标记为危险站点，只在安全状态真正变化时通过 Microsoft Teams Webhook 通知。
+      </p>
+    </div>
+  </header>
+
+  <nav class="toc">
+    <a href="#why">做什么</a>
+    <a href="#how">怎么检查</a>
+    <a href="#status">状态与通知</a>
+    <a href="#layout">仓库结构</a>
+    <a href="#run">怎么跑</a>
+    <a href="#k8s">K8s 部署</a>
+    <a href="#ci">CI / CD</a>
+  </nav>
+
+  <main>
+    <section id="why">
+      <h2>这个仓库解决什么问题</h2>
+      <p>
+        Google 会把恶意、钓鱼、被入侵的站点标成 unsafe。
+        本项目不调官方 API，而是用 Playwright 打开公开页面
+        <code>transparencyreport.google.com/safe-browsing/search</code>，
+        读取页面上的英文结论，再和上次结果对比。
+      </p>
+      <p>
+        适合盯一组业务域名（例如 portal），发现「从未 unsafe → 变成 unsafe」或「unsafe → 又变回 safe」时立刻告警，
+        状态没变就不刷屏。
+      </p>
+    </section>
+
+    <section id="how">
+      <h2>一次运行做了什么</h2>
+      <div class="flow">
+        读 domains.txt（跳过空行和 # 注释，去重）
+        <span>↓</span>
+        读 status.json（每个域名上次有效的 SAFE / UNSAFE）
+        <span>↓</span>
+        启动浏览器：本机用 Google Chrome；Docker / K8s 用 Playwright Chromium（无头）
+        <span>↓</span>
+        对每个域名打开 Transparency Report，解析页面文案
+        <span>↓</span>
+        最多重试 3 次（UNKNOWN / 异常会重试）
+        <span>↓</span>
+        决定要不要写新状态、要不要发 Webhook
+        <span>↓</span>
+        原子写入 status.json（先写 .tmp 再 replace）
+      </div>
+      <p>
+        核心逻辑都在 <code>app/monitor.py</code>。依赖只有 <code>playwright==1.62.0</code>。
+        Docker 镜像基于 <code>mcr.microsoft.com/playwright/python:v1.62.0-noble</code>，
+        容器里已经带 Chromium。
+      </p>
+    </section>
+
+    <section id="status">
+      <h2>状态机：什么会通知，什么不会</h2>
+      <p>解析页面得到五种结果：</p>
+      <table>
+        <thead>
+          <tr><th>状态</th><th>含义</th><th>怎么判定</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="badge unsafe">UNSAFE</span></td>
+            <td>Google 明确说站点不安全</td>
+            <td>页面含 <code>this site is unsafe</code> 等</td>
+          </tr>
+          <tr>
+            <td><span class="badge safe">SAFE</span></td>
+            <td>Google 明确说没发现不安全内容</td>
+            <td><code>no unsafe content found</code> / <code>this site is safe</code> 等</td>
+          </tr>
+          <tr>
+            <td><span class="badge warn">NO_DATA</span></td>
+            <td>Google 暂时没有该站数据</td>
+            <td><code>no available data</code></td>
+          </tr>
+          <tr>
+            <td><span class="badge warn">UNKNOWN</span></td>
+            <td>无法给出全站简单结论（大站常见），或页面没解析出来</td>
+            <td>对应英文说明；解析失败也会落到这里，并写 debug 文件</td>
+          </tr>
+          <tr>
+            <td><span class="badge neutral">CHECK_ERROR</span></td>
+            <td>检测过程异常（导航失败等）</td>
+            <td>重试耗尽后仍失败</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>会发 Teams 的情况</h3>
+      <ul>
+        <li>第一次检查就是 <strong>UNSAFE</strong></li>
+        <li>有效状态在 <strong>SAFE ↔ UNSAFE</strong> 之间切换（告警或恢复）</li>
+      </ul>
+
+      <h3>故意不通知、也不覆盖旧状态</h3>
+      <ul>
+        <li>SAFE → SAFE、UNSAFE → UNSAFE：无变化</li>
+        <li>第一次是 SAFE：只落盘，不发「都正常」的消息</li>
+        <li><strong>UNKNOWN / NO_DATA / CHECK_ERROR</strong>：不当作安全结论变化；若已有上次 SAFE/UNSAFE，会保留旧值，避免一次页面抽风把状态冲掉、或反复告警</li>
+      </ul>
+
+      <div class="callout">
+        <code>status.json</code> 只存「每个域名最后一次有效的 SAFE 或 UNSAFE」，不存历史。
+        文件不会随 CronJob 次数变大。Webhook 未配置时仍会跑检查并写状态，只是跳过 POST。
+      </div>
+    </section>
+
+    <section id="layout">
+      <h2>仓库里各文件干什么</h2>
+      <table>
+        <thead>
+          <tr><th>路径</th><th>作用</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>app/monitor.py</code></td><td>全部监控、解析、状态、Webhook 逻辑</td></tr>
+          <tr><td><code>domains.txt</code></td><td>本地默认域名列表（K8s 会被 ConfigMap 覆盖挂载）</td></tr>
+          <tr><td><code>Dockerfile</code></td><td>Playwright 镜像；状态写到 <code>/data/status.json</code></td></tr>
+          <tr><td><code>k8s/configmap.yaml</code></td><td>集群里实际监控哪些域名</td></tr>
+          <tr><td><code>k8s/pvc.yaml</code> + <code>storageclass.yaml</code></td><td>EBS gp3，跨 Job 保留状态</td></tr>
+          <tr><td><code>k8s/job.yaml</code></td><td>一次性试跑</td></tr>
+          <tr><td><code>k8s/cronjob.yaml</code></td><td>定时跑（当前 schedule 为每 10 分钟，<code>Forbid</code> 禁止重叠）</td></tr>
+          <tr><td><code>.github/workflows/docker-publish.yml</code></td><td>main / tag 构建并推 Docker Hub <code>jevinwanglb/portal-monitor</code></td></tr>
+          <tr><td><code>.github/workflows/cd.yml</code></td><td>手动指定 tag，在 EKS 上跑测试 Job</td></tr>
+        </tbody>
+      </table>
+      <p>
+        不要提交 <code>status.json</code>、debug 截图、Webhook URL。
+        Teams URL 只放环境变量或 K8s Secret <code>portal-monitor-alert</code> 的 <code>webhook-url</code>。
+      </p>
+    </section>
+
+    <section id="run">
+      <h2>三种运行方式</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h3>本机</h3>
+          <p>venv 装依赖，用系统 Chrome（有界面）。</p>
+          <p class="mono">export ALERT_WEBHOOK_URL=…<br />python app/monitor.py</p>
+          <p>公司 Zero Trust 导致 Webhook 证书失败时，可临时 <code>WEBHOOK_VERIFY_TLS=false</code>（不要当生产默认）。</p>
+        </div>
+        <div class="card">
+          <h3>Docker</h3>
+          <p>无头 Chromium，状态挂到宿主机目录。</p>
+          <p class="mono">-v $PWD/docker-state:/data<br />PLAYWRIGHT_HEADLESS=true</p>
+          <p>镜像里默认 <code>STATE_FILE=/data/status.json</code>。</p>
+        </div>
+      </div>
+      <p>
+        重要环境变量：<code>DOMAINS_FILE</code>、<code>STATE_FILE</code>、<code>PLAYWRIGHT_HEADLESS</code>、
+        <code>IGNORE_HTTPS_ERRORS</code>（无头模式默认真，本机默认真否）、
+        <code>ALERT_WEBHOOK_URL</code>、<code>WEBHOOK_VERIFY_TLS</code>、以及超时/重试相关项。
+      </p>
+    </section>
+
+    <section id="k8s">
+      <h2>Kubernetes 怎么拼在一起</h2>
+      <div class="flow">
+        Namespace: portal-monitor
+        <span>↓</span>
+        ConfigMap portal-monitor-config  →  挂到 /app/domains.txt（改域名只需 apply ConfigMap，不用重建镜像）
+        <span>↓</span>
+        Secret portal-monitor-alert     →  ALERT_WEBHOOK_URL
+        <span>↓</span>
+        PVC portal-monitor-state (gp3)  →  /data/status.json
+        <span>↓</span>
+        先 Job 验证，再 CronJob 周期执行
+      </div>
+      <p>
+        StorageClass 是 <code>WaitForFirstConsumer</code>：PVC 一开始可能 Pending，等第一个 Job Pod 调度后 EBS 才 Bound。
+        删 Job 不要删 PVC，否则下次会当成「第一次检查」再次告警。
+      </p>
+      <p>
+        CronJob 镜像当前为 <code>jevinwanglb/portal-monitor:v1.0.0</code>；
+        测试 Job YAML 里仍可能写着旧仓库名 <code>jevinwanglb/repo:portal-monitor-v1</code>，
+        CD workflow 会用 <code>sed</code> 换成指定 tag 再 apply。
+      </p>
+    </section>
+
+    <section id="ci">
+      <h2>构建与发布</h2>
+      <ul>
+        <li>
+          <strong>docker-publish</strong>：push 到 <code>main</code>（且改了 app / Dockerfile / requirements 等）或打 <code>v*</code> tag，
+          构建 <code>linux/amd64</code> 推 Docker Hub。commit 得到 <code>sha-…</code> tag，Git tag 得到版本 tag。
+        </li>
+        <li>
+          <strong>cd</strong>：<code>workflow_dispatch</code>，输入 image tag，在 runner <code>arc-runner-set-portal</code> 上
+          删掉旧的 <code>portal-monitor-test</code> Job，apply 新 Job，等到 complete 并打日志。目前不自动改 CronJob。
+        </li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    说明根据当前仓库源码整理，可直接用浏览器打开本文件。更细的操作步骤见仓库根目录 README.md。
+  </footer>
+</body>
+</html>
