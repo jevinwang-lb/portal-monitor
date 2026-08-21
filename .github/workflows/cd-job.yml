@@ -1,4 +1,4 @@
-name: CD - Deploy Portal Monitor
+name: CD - Deploy Job
 
 on:
   workflow_dispatch:

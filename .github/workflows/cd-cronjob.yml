@@ -1,0 +1,76 @@
+name: CD - Deploy CronJob
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Release image tag, e.g. v1.0.1"
+        required: true
+
+env:
+  KUBE_LATEST_VERSION: "v1.36.0"
+  IMAGE_NAME: "jevinwanglb/portal-monitor"
+  NAMESPACE: "portal-monitor"
+
+jobs:
+  deploy:
+    name: Deploy CronJob
+    runs-on: arc-runner-set-portal
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: ${{ env.KUBE_LATEST_VERSION }}
+
+      - name: Check Kubernetes access
+        run: |
+          kubectl auth whoami
+          kubectl get namespace "$NAMESPACE"
+
+      - name: Show release
+        run: |
+          echo "Deploying:"
+          echo "${IMAGE_NAME}:${{ inputs.image_tag }}"
+
+      - name: Deploy ConfigMap
+        run: |
+          kubectl apply \
+            -n "$NAMESPACE" \
+            -f k8s/configmap.yaml
+
+      - name: Deploy PVC
+        run: |
+          kubectl apply \
+            -n "$NAMESPACE" \
+            -f k8s/pvc.yaml
+
+      - name: Deploy CronJob
+        run: |
+          kubectl apply \
+            -n "$NAMESPACE" \
+            -f k8s/cronjob.yaml
+
+      - name: Update CronJob image
+        run: |
+          kubectl set image \
+            cronjob/portal-monitor \
+            portal-monitor="${IMAGE_NAME}:${{ inputs.image_tag }}" \
+            -n "$NAMESPACE"
+
+      - name: Verify deployment
+        run: |
+          echo "CronJob:"
+          kubectl get cronjob portal-monitor \
+            -n "$NAMESPACE"
+
+          echo ""
+          echo "Image:"
+          kubectl get cronjob portal-monitor \
+            -n "$NAMESPACE" \
+            -o jsonpath='{.spec.jobTemplate.spec.template.spec.containers[0].image}'
+
+          echo
