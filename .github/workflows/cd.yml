@@ -48,17 +48,18 @@ jobs:
 
       - name: Test Kubernetes connection
         run: |
-          echo "Current context:"
-          kubectl config current-context
+          echo "== in-cluster env =="
+          echo "API: ${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT}"
+          echo "SA namespace: $(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)"
 
-          echo ""
-          echo "Cluster info:"
+          echo "== whoami =="
+          kubectl auth whoami || true
+
+          echo "== cluster-info =="
           kubectl cluster-info
 
-          echo ""
-          echo "Nodes:"
+          echo "== nodes =="
           kubectl get nodes
 
-          echo ""
-          echo "Portal Monitor namespace:"
-          kubectl get namespace portal-monitor
+          echo "== portal-monitor ns =="
+          kubectl get ns portal-monitor
