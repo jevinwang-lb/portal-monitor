@@ -1,0 +1,49 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: portal-safe-browsing-monitor
+spec:
+  schedule: "*/5 * * * *"
+
+  concurrencyPolicy: Forbid
+
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+
+      template:
+        spec:
+          restartPolicy: Never
+
+          containers:
+            - name: monitor
+
+              image: YOUR_REGISTRY/portal-monitor:1.0.0
+
+              env:
+                - name: ALERT_WEBHOOK_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: portal-monitor-alert
+                      key: webhook-url
+
+              volumeMounts:
+                - name: domains
+                  mountPath: /app/domains.txt
+                  subPath: domains.txt
+
+                - name: state
+                  mountPath: /data
+
+          volumes:
+
+            - name: domains
+              configMap:
+                name: portal-monitor-config
+
+            - name: state
+              persistentVolumeClaim:
+                claimName: portal-monitor-state

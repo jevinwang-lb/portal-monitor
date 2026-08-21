@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: portal-monitor-config
+data:
+  domains.txt: |
+    portal.boruxa.com
+    bilibili.com
+    www.baidu.com
