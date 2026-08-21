@@ -10,7 +10,7 @@ env:
 jobs:
   test:
     name: Test ARC Runner
-    runs-on: arc-runner-set
+    runs-on: arc-runner-set-portal
 
     steps:
       - name: Test runner
