@@ -1,0 +1,92 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches:
+      - main
+
+    tags:
+      - "v*"
+
+    paths:
+      - "app/**"
+      - "Dockerfile"
+      - "requirements.txt"
+      - "domains.txt"
+      - ".github/workflows/docker-publish.yml"
+
+  workflow_dispatch:
+
+env:
+  IMAGE_NAME: jevinwanglb/portal-monitor
+
+jobs:
+  docker:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      # --------------------------------------------------
+      # Checkout source code
+      # --------------------------------------------------
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # --------------------------------------------------
+      # Docker Buildx
+      # --------------------------------------------------
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # --------------------------------------------------
+      # Docker Hub login
+      # Personal Docker Hub credential for now
+      # --------------------------------------------------
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_JEVIN_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_JEVIN_TOKEN }}
+
+      # --------------------------------------------------
+      # Generate Docker image tags
+      #
+      # main push:
+      #   sha-a83d521
+      #
+      # Git tag:
+      #   v1.0.0
+      # --------------------------------------------------
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+
+          tags: |
+            type=sha,prefix=sha-
+            type=ref,event=tag
+
+      # --------------------------------------------------
+      # Build and push
+      # --------------------------------------------------
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+
+          # EKS nodes are expected to be amd64
+          platforms: linux/amd64
+
+          push: true
+
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+          # GitHub Actions build cache
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
