@@ -45,3 +45,20 @@ jobs:
       - name: Check Helm
         run: |
           helm version
+
+      - name: Test Kubernetes connection
+        run: |
+          echo "Current context:"
+          kubectl config current-context
+
+          echo ""
+          echo "Cluster info:"
+          kubectl cluster-info
+
+          echo ""
+          echo "Nodes:"
+          kubectl get nodes
+
+          echo ""
+          echo "Portal Monitor namespace:"
+          kubectl get namespace portal-monitor
