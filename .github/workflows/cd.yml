@@ -86,3 +86,10 @@ jobs:
 
           kubectl get configmap arc-cd-test \
             -n portal-monitor
+
+      - name: Cleanup test resource
+        if: always()
+        run: |
+          kubectl delete configmap arc-cd-test \
+            -n portal-monitor \
+            --ignore-not-found
