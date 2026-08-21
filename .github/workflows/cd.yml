@@ -53,6 +53,12 @@ jobs:
             -e "s#image: .*#image: ${IMAGE_NAME}:${{ inputs.image_tag }}#" \
             k8s/job.yaml > /tmp/job.yaml
 
+      - name: Deploy ConfigMap
+        run: |
+          kubectl apply \
+            -n portal-monitor \
+            -f k8s/configmap.yaml
+
       - name: Deploy test Job
         run: |
           kubectl delete job portal-monitor-test \
