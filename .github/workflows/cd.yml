@@ -74,3 +74,15 @@ jobs:
           kubectl get configmap -n portal-monitor
           kubectl get secret -n portal-monitor
           kubectl get pvc -n portal-monitor
+
+      - name: Test Kubernetes write permission
+        run: |
+          kubectl create configmap arc-cd-test \
+            -n portal-monitor \
+            --from-literal=test=true \
+            --dry-run=client \
+            -o yaml \
+            | kubectl apply -f -
+
+          kubectl get configmap arc-cd-test \
+            -n portal-monitor
