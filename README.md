@@ -1,5 +1,42 @@
 # Portal Safe Browsing Monitor
 
+- [Portal Safe Browsing Monitor](#portal-safe-browsing-monitor)
+  - [1. Status](#1-status)
+  - [2. Alert Logic](#2-alert-logic)
+  - [3. Project Structure](#3-project-structure)
+  - [4. Local Setup](#4-local-setup)
+  - [Create Python Environment](#create-python-environment)
+  - [5. Configure Domains](#5-configure-domains)
+  - [6. Teams Webhook](#6-teams-webhook)
+  - [7. Test Teams Webhook](#7-test-teams-webhook)
+  - [8. Local Run](#8-local-run)
+  - [9. Docker](#9-docker)
+  - [10. Docker Image Version](#10-docker-image-version)
+  - [11. Kubernetes Architecture](#11-kubernetes-architecture)
+  - [12. Namespace](#12-namespace)
+  - [13. EBS CSI / StorageClass](#13-ebs-csi--storageclass)
+  - [14. Production PVC](#14-production-pvc)
+  - [15. Test PVC](#15-test-pvc)
+  - [16. ConfigMap](#16-configmap)
+  - [17. Teams Secret](#17-teams-secret)
+  - [18. Test Job](#18-test-job)
+  - [19. Production CronJob](#19-production-cronjob)
+  - [20. Manual Trigger CronJob](#20-manual-trigger-cronjob)
+  - [21. Suspend Production CronJob](#21-suspend-production-cronjob)
+  - [22. CI/CD](#22-cicd)
+  - [CI](#ci)
+  - [Test CD](#test-cd)
+  - [Production CD](#production-cd)
+  - [23. Debug PVC](#23-debug-pvc)
+  - [Debug Production PVC](#debug-production-pvc)
+  - [Debug Test PVC](#debug-test-pvc)
+  - [24. Debug Files](#24-debug-files)
+  - [25. Useful Commands](#25-useful-commands)
+  - [26. Google Web Risk](#26-google-web-risk)
+  - [27. Current Deployment Model](#27-current-deployment-model)
+
+---
+
 定时检查 Google Safe Browsing Transparency Report 中配置域名 / URL 的安全状态，并在状态发生变化时通过 Microsoft Teams Workflow Webhook 发送通知。
 
 当前运行方式：
