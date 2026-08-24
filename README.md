@@ -5,7 +5,7 @@
   - [2. Alert Logic](#2-alert-logic)
   - [3. Project Structure](#3-project-structure)
   - [4. Local Setup](#4-local-setup)
-  - [Create Python Environment](#create-python-environment)
+    - [4.1 Create Python Environment](#41-create-python-environment)
   - [5. Configure Domains](#5-configure-domains)
   - [6. Teams Webhook](#6-teams-webhook)
   - [7. Test Teams Webhook](#7-test-teams-webhook)
@@ -180,7 +180,7 @@ docker-state/
 
 ## 4. Local Setup
 
-## Create Python Environment
+### 4.1 Create Python Environment
 
 ```bash
 python3 -m venv .venv
