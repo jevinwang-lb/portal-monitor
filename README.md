@@ -24,12 +24,12 @@
   - [20. Manual Trigger CronJob](#20-manual-trigger-cronjob)
   - [21. Suspend Production CronJob](#21-suspend-production-cronjob)
   - [22. CI/CD](#22-cicd)
-  - [CI](#ci)
-  - [Test CD](#test-cd)
-  - [Production CD](#production-cd)
+    - [22.1 CI](#221-ci)
+    - [22.2 Test CD](#222-test-cd)
+    - [22.3 Production CD](#223-production-cd)
   - [23. Debug PVC](#23-debug-pvc)
-  - [Debug Production PVC](#debug-production-pvc)
-  - [Debug Test PVC](#debug-test-pvc)
+    - [23.1 Debug Production PVC](#231-debug-production-pvc)
+    - [23.2 Debug Test PVC](#232-debug-test-pvc)
   - [24. Debug Files](#24-debug-files)
   - [25. Useful Commands](#25-useful-commands)
   - [26. Google Web Risk](#26-google-web-risk)
@@ -786,7 +786,7 @@ kubectl get cronjob portal-monitor
 
 ## 22. CI/CD
 
-## CI
+### 22.1 CI
 
 GitHub Actions：
 
@@ -821,7 +821,7 @@ jevinwanglb/portal-monitor:v1.0.1
 
 ---
 
-## Test CD
+### 22.2 Test CD
 
 Test CD：
 
@@ -843,7 +843,7 @@ Test Job 自动使用最新 SHA Image。
 
 ---
 
-## Production CD
+### 22.3 Production CD
 
 Production：
 
@@ -898,7 +898,7 @@ cannot exec into a container in a completed pod
 
 ---
 
-## Debug Production PVC
+### 23.1 Debug Production PVC
 
 ```bash
 kubectl run pvc-debug \
@@ -974,7 +974,7 @@ kubectl delete pod pvc-debug
 
 ---
 
-## Debug Test PVC
+### 23.2 Debug Test PVC
 
 如果需要查看 Test 状态，只需要把：
 
