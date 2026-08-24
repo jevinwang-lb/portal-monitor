@@ -28,13 +28,13 @@ Production 运行在 Kubernetes CronJob 中，每 10 分钟检查一次。
 
 当前支持：
 
-| Status | Description |
-|---|---|
-| `SAFE` | Google 明确返回安全 |
-| `UNSAFE` | Google 判定网站或部分页面存在风险 |
-| `UNKNOWN` | Google 无法明确判断 |
-| `NO_DATA` | Google 暂无该站点数据 |
-| `CHECK_ERROR` | 页面访问或检测过程异常 |
+| Status        | Description                       |
+| ------------- | --------------------------------- |
+| `SAFE`        | Google 明确返回安全               |
+| `UNSAFE`      | Google 判定网站或部分页面存在风险 |
+| `UNKNOWN`     | Google 无法明确判断               |
+| `NO_DATA`     | Google 暂无该站点数据             |
+| `CHECK_ERROR` | 页面访问或检测过程异常            |
 
 支持识别的 UNSAFE 页面结果包括：
 
