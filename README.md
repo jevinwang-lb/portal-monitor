@@ -1,39 +1,42 @@
 # Portal Safe Browsing Monitor
 
 - [Portal Safe Browsing Monitor](#portal-safe-browsing-monitor)
-  - [1. Status](#1-status)
-  - [2. Alert Logic](#2-alert-logic)
-  - [3. Project Structure](#3-project-structure)
-  - [4. Local Setup](#4-local-setup)
-    - [4.1 Create Python Environment](#41-create-python-environment)
-  - [5. Configure Domains](#5-configure-domains)
-  - [6. Teams Webhook](#6-teams-webhook)
-  - [7. Test Teams Webhook](#7-test-teams-webhook)
-  - [8. Local Run](#8-local-run)
-  - [9. Docker](#9-docker)
-  - [10. Docker Image Version](#10-docker-image-version)
-  - [11. Kubernetes Architecture](#11-kubernetes-architecture)
-  - [12. Namespace](#12-namespace)
-  - [13. EBS CSI / StorageClass](#13-ebs-csi--storageclass)
-  - [14. Production PVC](#14-production-pvc)
-  - [15. Test PVC](#15-test-pvc)
-  - [16. ConfigMap](#16-configmap)
-  - [17. Teams Secret](#17-teams-secret)
-  - [18. Test Job](#18-test-job)
-  - [19. Production CronJob](#19-production-cronjob)
-  - [20. Manual Trigger CronJob](#20-manual-trigger-cronjob)
-  - [21. Suspend Production CronJob](#21-suspend-production-cronjob)
-  - [22. CI/CD](#22-cicd)
-    - [22.1 CI](#221-ci)
-    - [22.2 Test CD](#222-test-cd)
-    - [22.3 Production CD](#223-production-cd)
-  - [23. Debug PVC](#23-debug-pvc)
-    - [23.1 Debug Production PVC](#231-debug-production-pvc)
-    - [23.2 Debug Test PVC](#232-debug-test-pvc)
-  - [24. Debug Files](#24-debug-files)
-  - [25. Useful Commands](#25-useful-commands)
-  - [26. Google Web Risk](#26-google-web-risk)
-  - [27. Current Deployment Model](#27-current-deployment-model)
+  - [Overview](#overview)
+    - [Status](#status)
+    - [Alert Logic](#alert-logic)
+    - [Project Structure](#project-structure)
+  - [1. Local](#1-local)
+    - [1.1 Create Python Environment](#11-create-python-environment)
+    - [1.2 Configure Domains](#12-configure-domains)
+    - [1.3 Teams Webhook](#13-teams-webhook)
+    - [1.4 Test Teams Webhook](#14-test-teams-webhook)
+    - [1.5 Local Run](#15-local-run)
+  - [2. Docker](#2-docker)
+    - [2.1 Build and Push](#21-build-and-push)
+    - [2.2 Image Version](#22-image-version)
+  - [3. Kubernetes](#3-kubernetes)
+    - [3.1 Architecture](#31-architecture)
+    - [3.2 Namespace](#32-namespace)
+    - [3.3 EBS CSI / StorageClass](#33-ebs-csi--storageclass)
+    - [3.4 Production PVC](#34-production-pvc)
+    - [3.5 Test PVC](#35-test-pvc)
+    - [3.6 ConfigMap](#36-configmap)
+    - [3.7 Teams Secret](#37-teams-secret)
+    - [3.8 Test Job](#38-test-job)
+    - [3.9 Production CronJob](#39-production-cronjob)
+    - [3.10 Manual Trigger CronJob](#310-manual-trigger-cronjob)
+    - [3.11 Suspend Production CronJob](#311-suspend-production-cronjob)
+    - [3.12 Debug PVC](#312-debug-pvc)
+      - [Debug Production PVC](#debug-production-pvc)
+      - [Debug Test PVC](#debug-test-pvc)
+    - [3.13 Debug Files](#313-debug-files)
+    - [3.14 Useful Commands](#314-useful-commands)
+  - [4. CI/CD](#4-cicd)
+    - [4.1 CI](#41-ci)
+    - [4.2 Test CD](#42-test-cd)
+    - [4.3 Production CD](#43-production-cd)
+  - [Google Web Risk](#google-web-risk)
+  - [Current Deployment Model](#current-deployment-model)
 
 ---
 
@@ -61,7 +64,9 @@ Production 运行在 Kubernetes CronJob 中，每 10 分钟检查一次。
 
 ---
 
-## 1. Status
+## Overview
+
+### Status
 
 当前支持：
 
@@ -97,7 +102,7 @@ UNSAFE
 
 ---
 
-## 2. Alert Logic
+### Alert Logic
 
 首次发现：
 
@@ -138,7 +143,7 @@ SAFE → SAFE
 
 ---
 
-## 3. Project Structure
+### Project Structure
 
 ```text
 portal-monitor/
@@ -178,9 +183,9 @@ docker-state/
 
 ---
 
-## 4. Local Setup
+## 1. Local
 
-### 4.1 Create Python Environment
+### 1.1 Create Python Environment
 
 ```bash
 python3 -m venv .venv
@@ -197,7 +202,7 @@ Local macOS 使用本机 Google Chrome。
 
 ---
 
-## 5. Configure Domains
+### 1.2 Configure Domains
 
 编辑：
 
@@ -233,7 +238,7 @@ testsafebrowsing.appspot.com/apiv4/ANY_PLATFORM/MALWARE/URL/
 
 ---
 
-## 6. Teams Webhook
+### 1.3 Teams Webhook
 
 Teams / Power Automate Workflow：
 
@@ -283,7 +288,7 @@ query keys: ['api-version', 'sp', 'sv', 'sig']
 
 ---
 
-## 7. Test Teams Webhook
+### 1.4 Test Teams Webhook
 
 ```bash
 curl -i -X POST "$ALERT_WEBHOOK_URL" \
@@ -315,7 +320,7 @@ Current: UNSAFE
 
 ---
 
-## 8. Local Run
+### 1.5 Local Run
 
 如果公司 Zero Trust 导致 Python Webhook SSL verification error，本地测试可临时：
 
@@ -360,7 +365,9 @@ status.json
 
 ---
 
-## 9. Docker
+## 2. Docker
+
+### 2.1 Build and Push
 
 Build：
 
@@ -391,7 +398,7 @@ jevinwanglb/portal-monitor
 
 ---
 
-## 10. Docker Image Version
+### 2.2 Image Version
 
 开发提交使用 Git SHA：
 
@@ -426,7 +433,9 @@ Production CronJob
 
 ---
 
-## 11. Kubernetes Architecture
+## 3. Kubernetes
+
+### 3.1 Architecture
 
 Namespace：
 
@@ -464,7 +473,7 @@ Test 与 Production 使用不同 PVC，避免测试修改 Production 状态。
 
 ---
 
-## 12. Namespace
+### 3.2 Namespace
 
 首次创建：
 
@@ -495,7 +504,7 @@ portal-monitor
 
 ---
 
-## 13. EBS CSI / StorageClass
+### 3.3 EBS CSI / StorageClass
 
 确认 EBS CSI：
 
@@ -530,7 +539,7 @@ ebs.csi.aws.com
 
 ---
 
-## 14. Production PVC
+### 3.4 Production PVC
 
 ```bash
 kubectl apply -f k8s/pvc.yaml
@@ -556,7 +565,7 @@ portal-monitor-state
 
 ---
 
-## 15. Test PVC
+### 3.5 Test PVC
 
 ```bash
 kubectl apply -f k8s/test-pvc.yaml
@@ -598,7 +607,7 @@ Bound
 
 ---
 
-## 16. ConfigMap
+### 3.6 ConfigMap
 
 域名配置：
 
@@ -628,7 +637,7 @@ kubectl apply -f k8s/configmap.yaml
 
 ---
 
-## 17. Teams Secret
+### 3.7 Teams Secret
 
 本地：
 
@@ -653,7 +662,7 @@ kubectl get secret portal-monitor-alert
 
 ---
 
-## 18. Test Job
+### 3.8 Test Job
 
 Test 环境使用：
 
@@ -685,7 +694,7 @@ STATUS: Complete
 
 ---
 
-## 19. Production CronJob
+### 3.9 Production CronJob
 
 Production：
 
@@ -730,7 +739,7 @@ concurrencyPolicy: Forbid
 
 ---
 
-## 20. Manual Trigger CronJob
+### 3.10 Manual Trigger CronJob
 
 无需等待 10 分钟：
 
@@ -760,7 +769,7 @@ kubectl delete job portal-monitor-manual-test
 
 ---
 
-## 21. Suspend Production CronJob
+### 3.11 Suspend Production CronJob
 
 测试期间如果不希望 Production 自动运行：
 
@@ -784,97 +793,7 @@ kubectl get cronjob portal-monitor
 
 ---
 
-## 22. CI/CD
-
-### 22.1 CI
-
-GitHub Actions：
-
-```text
-main push
-   ↓
-Build Docker
-   ↓
-Push Docker Hub
-   ↓
-sha-xxxxxxx
-```
-
-例如：
-
-```text
-jevinwanglb/portal-monitor:sha-c0691a8
-```
-
-Git Tag：
-
-```bash
-git tag v1.0.1
-git push origin v1.0.1
-```
-
-生成：
-
-```text
-jevinwanglb/portal-monitor:v1.0.1
-```
-
----
-
-### 22.2 Test CD
-
-Test CD：
-
-```text
-CI success
-    ↓
-CD Test
-    ↓
-Deploy sha-xxxxxxx
-    ↓
-portal-monitor-test
-    ↓
-portal-monitor-state-test
-    ↓
-Completed
-```
-
-Test Job 自动使用最新 SHA Image。
-
----
-
-### 22.3 Production CD
-
-Production：
-
-```text
-Test Passed
-    ↓
-Release v1.x.x
-    ↓
-CD Production
-    ↓
-Update CronJob
-    ↓
-Production PVC
-```
-
-查看 Production 当前 Image：
-
-```bash
-kubectl get cronjob portal-monitor \
-  -o jsonpath='{.spec.jobTemplate.spec.template.spec.containers[0].image}'; echo
-```
-
-例如：
-
-```text
-jevinwanglb/portal-monitor:v1.0.0
-```
-
----
-
-## 23. Debug PVC
+### 3.12 Debug PVC
 
 Job / CronJob Pod 完成后：
 
@@ -898,7 +817,7 @@ cannot exec into a container in a completed pod
 
 ---
 
-### 23.1 Debug Production PVC
+#### Debug Production PVC
 
 ```bash
 kubectl run pvc-debug \
@@ -974,7 +893,7 @@ kubectl delete pod pvc-debug
 
 ---
 
-### 23.2 Debug Test PVC
+#### Debug Test PVC
 
 如果需要查看 Test 状态，只需要把：
 
@@ -1010,7 +929,7 @@ cat /data/status.json
 
 ---
 
-## 24. Debug Files
+### 3.13 Debug Files
 
 当 Google 页面无法得到明确状态时，Monitor 会保存 Debug 信息：
 
@@ -1032,7 +951,7 @@ cat /data/status.json
 
 ---
 
-## 25. Useful Commands
+### 3.14 Useful Commands
 
 查看 Pod：
 
@@ -1100,7 +1019,97 @@ kubectl get jobs \
 
 ---
 
-## 26. Google Web Risk
+## 4. CI/CD
+
+### 4.1 CI
+
+GitHub Actions：
+
+```text
+main push
+   ↓
+Build Docker
+   ↓
+Push Docker Hub
+   ↓
+sha-xxxxxxx
+```
+
+例如：
+
+```text
+jevinwanglb/portal-monitor:sha-c0691a8
+```
+
+Git Tag：
+
+```bash
+git tag v1.0.1
+git push origin v1.0.1
+```
+
+生成：
+
+```text
+jevinwanglb/portal-monitor:v1.0.1
+```
+
+---
+
+### 4.2 Test CD
+
+Test CD：
+
+```text
+CI success
+    ↓
+CD Test
+    ↓
+Deploy sha-xxxxxxx
+    ↓
+portal-monitor-test
+    ↓
+portal-monitor-state-test
+    ↓
+Completed
+```
+
+Test Job 自动使用最新 SHA Image。
+
+---
+
+### 4.3 Production CD
+
+Production：
+
+```text
+Test Passed
+    ↓
+Release v1.x.x
+    ↓
+CD Production
+    ↓
+Update CronJob
+    ↓
+Production PVC
+```
+
+查看 Production 当前 Image：
+
+```bash
+kubectl get cronjob portal-monitor \
+  -o jsonpath='{.spec.jobTemplate.spec.template.spec.containers[0].image}'; echo
+```
+
+例如：
+
+```text
+jevinwanglb/portal-monitor:v1.0.0
+```
+
+---
+
+## Google Web Risk
 
 最初方案也考虑直接使用 Google Web Risk API。
 
@@ -1130,7 +1139,7 @@ Python + Playwright + Chromium
 
 ---
 
-## 27. Current Deployment Model
+## Current Deployment Model
 
 最终流程：
 

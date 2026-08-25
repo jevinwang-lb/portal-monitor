@@ -294,20 +294,18 @@
 
   <div class="wrap">
     <nav class="toc">
-      <a href="#what">做什么</a>
-      <a href="#run-once">一次检查</a>
-      <a href="#status">状态判定</a>
-      <a href="#alert">告警规则</a>
-      <a href="#files">文件结构</a>
-      <a href="#local">本机 / Docker</a>
-      <a href="#k8s">Kubernetes</a>
-      <a href="#cicd">CI / CD</a>
+      <a href="#overview">Overview</a>
+      <a href="#local">1. Local</a>
+      <a href="#docker">2. Docker</a>
+      <a href="#k8s">3. Kubernetes</a>
+      <a href="#cicd">4. CI / CD</a>
       <a href="#debug">排障</a>
     </nav>
 
     <main>
-      <section id="what">
-        <h2>这个仓库解决什么问题</h2>
+      <section id="overview">
+        <h2>Overview</h2>
+        <h3>这个仓库解决什么问题</h3>
         <p>
           不调用 Safe Browsing Lookup API，而是用浏览器打开公开页面
           <code>transparencyreport.google.com/safe-browsing/search</code>，
@@ -352,7 +350,7 @@
       </section>
 
       <section id="run-once">
-        <h2>一次运行做了什么</h2>
+        <h3>一次运行做了什么</h3>
         <p>入口是 <code>app/monitor.py</code>，依赖只有 <code>playwright==1.62.0</code>。</p>
 
         <ol>
@@ -373,7 +371,7 @@
       </section>
 
       <section id="status">
-        <h2>五种状态，以及页面怎么判定</h2>
+        <h3>Status</h3>
         <table>
           <thead>
             <tr>
@@ -438,7 +436,7 @@
       </section>
 
       <section id="alert">
-        <h2>什么会发 Teams，什么不会</h2>
+        <h3>Alert Logic</h3>
         <div class="grid-2">
           <div class="card">
             <h3>会通知</h3>
@@ -466,7 +464,7 @@
       </section>
 
       <section id="files">
-        <h2>仓库里各文件干什么</h2>
+        <h3>Project Structure</h3>
         <table>
           <thead>
             <tr><th style="width:42%">路径</th><th>作用</th></tr>
@@ -490,24 +488,11 @@
       </section>
 
       <section id="local">
-        <h2>本机和 Docker</h2>
-        <div class="grid-2">
-          <div class="card">
-            <h3>本机 macOS</h3>
-            <p>venv 装依赖，用本机 Google Chrome。</p>
-            <pre>export ALERT_WEBHOOK_URL='…'
+        <h2>1. Local</h2>
+        <p>venv 装依赖，用本机 Google Chrome。</p>
+        <pre>export ALERT_WEBHOOK_URL='…'
 python app/monitor.py</pre>
-            <p class="muted">Zero Trust 证书问题时可临时 <code>WEBHOOK_VERIFY_TLS=false</code>，不要当生产默认。</p>
-          </div>
-          <div class="card">
-            <h3>Docker</h3>
-            <p>无头 Chromium，状态挂到宿主机目录。</p>
-            <pre>docker run --rm --ipc=host \
-  -v "$PWD/docker-state:/data" \
-  -e ALERT_WEBHOOK_URL=… \
-  jevinwanglb/portal-monitor:sha-xxxxxxx</pre>
-          </div>
-        </div>
+        <p class="muted">Zero Trust 证书问题时可临时 <code>WEBHOOK_VERIFY_TLS=false</code>，不要当生产默认。</p>
 
         <h3>常用环境变量</h3>
         <table>
@@ -528,8 +513,18 @@ python app/monitor.py</pre>
         </table>
       </section>
 
+      <section id="docker">
+        <h2>2. Docker</h2>
+        <p>无头 Chromium，状态挂到宿主机目录。</p>
+        <pre>docker run --rm --ipc=host \
+  -v "$PWD/docker-state:/data" \
+  -e ALERT_WEBHOOK_URL=… \
+  jevinwanglb/portal-monitor:sha-xxxxxxx</pre>
+        <p class="muted">开发镜像用 <code>sha-xxxxxxx</code>，生产用 <code>v1.x.x</code>。不要把未验证的 SHA 直接指到 CronJob。</p>
+      </section>
+
       <section id="k8s">
-        <h2>Kubernetes 怎么拼</h2>
+        <h2>3. Kubernetes</h2>
         <p>
           Namespace：<code>portal-monitor</code>。
           Secret <code>portal-monitor-alert</code> 的 key <code>webhook-url</code> 不要进 Git。
@@ -575,7 +570,7 @@ python app/monitor.py</pre>
       </section>
 
       <section id="cicd">
-        <h2>CI / CD 流程</h2>
+        <h2>4. CI / CD</h2>
         <p class="muted">测试跟 commit SHA，生产跟 Semver tag。不要把未验证的 <code>sha-…</code> 直接指到 CronJob。</p>
 
         <div class="pipe">
