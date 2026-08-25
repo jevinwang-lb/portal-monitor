@@ -5,6 +5,6 @@ metadata:
   namespace: portal-monitor
 data:
   domains.txt: |
-    portal.boruxa.com
-    testsafebrowsing.appspot.com/apiv4/ANY_PLATFORM/MALWARE/URL/
-    testsafebrowsing.appspot.com/apiv4/ANY_PLATFORM/SOCIAL_ENGINEERING/URL/
+    # portal.boruxa.com
+    # testsafebrowsing.appspot.com/apiv4/ANY_PLATFORM/MALWARE/URL/
+    # testsafebrowsing.appspot.com/apiv4/ANY_PLATFORM/SOCIAL_ENGINEERING/URL/
