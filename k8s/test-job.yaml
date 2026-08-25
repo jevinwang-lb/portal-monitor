@@ -2,6 +2,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: portal-monitor-test
+  namespace: portal-monitor
 
 spec:
   backoffLimit: 0
@@ -9,7 +10,7 @@ spec:
   template:
     metadata:
       labels:
-        app: portal-monitor
+        app: portal-monitor-test
 
     spec:
       restartPolicy: Never
@@ -17,31 +18,26 @@ spec:
       containers:
         - name: portal-monitor
 
-          image: jevinwanglb/repo:portal-monitor-v1
+          # Image is overridden by CD workflow (kubectl / sed)
+          image: jevinwanglb/portal-monitor:latest
           imagePullPolicy: Always
 
           env:
-            # 域名配置
             - name: DOMAINS_FILE
               value: /app/domains.txt
 
-            # 状态文件
             - name: STATE_FILE
               value: /data/status.json
 
-            # K8s 使用容器 Chromium
             - name: PLAYWRIGHT_HEADLESS
               value: "true"
 
-            # K8s 网络目前证书验证正常
             - name: IGNORE_HTTPS_ERRORS
               value: "false"
 
-            # Teams Webhook TLS 验证
             - name: WEBHOOK_VERIFY_TLS
               value: "true"
 
-            # Teams / Power Automate Webhook
             - name: ALERT_WEBHOOK_URL
               valueFrom:
                 secretKeyRef:
@@ -49,13 +45,11 @@ spec:
                   key: webhook-url
 
           volumeMounts:
-            # domains.txt
             - name: domains
               mountPath: /app/domains.txt
               subPath: domains.txt
               readOnly: true
 
-            # status.json / debug files
             - name: state
               mountPath: /data
 
@@ -69,12 +63,10 @@ spec:
               memory: "1Gi"
 
       volumes:
-        # ConfigMap → domains.txt
         - name: domains
           configMap:
             name: portal-monitor-config-test
 
-        # PVC → /data
         - name: state
           persistentVolumeClaim:
-            claimName: portal-monitor-state
+            claimName: portal-monitor-state-test

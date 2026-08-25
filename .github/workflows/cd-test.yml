@@ -97,6 +97,8 @@ jobs:
 
       # --------------------------------------------------
       # Deploy / update test Job
+      # Job pod template is immutable, so delete + recreate
+      # with the target image injected into the manifest.
       # --------------------------------------------------
       - name: Deploy test Job
         run: |
@@ -105,85 +107,20 @@ jobs:
           echo "Using image:"
           echo "$IMAGE"
 
-          cat > /tmp/test-job.yaml <<EOF
-          apiVersion: batch/v1
-          kind: Job
-          metadata:
-            name: portal-monitor-test
-            namespace: ${NAMESPACE}
-          spec:
-            backoffLimit: 0
-
-            template:
-              metadata:
-                labels:
-                  app: portal-monitor-test
-
-              spec:
-                restartPolicy: Never
-
-                containers:
-                  - name: portal-monitor
-
-                    image: ${IMAGE}
-                    imagePullPolicy: Always
-
-                    env:
-                      - name: DOMAINS_FILE
-                        value: /app/domains.txt
-
-                      - name: STATE_FILE
-                        value: /data/status.json
-
-                      - name: PLAYWRIGHT_HEADLESS
-                        value: "true"
-
-                      - name: IGNORE_HTTPS_ERRORS
-                        value: "false"
-
-                      - name: WEBHOOK_VERIFY_TLS
-                        value: "true"
-
-                      - name: ALERT_WEBHOOK_URL
-                        valueFrom:
-                          secretKeyRef:
-                            name: portal-monitor-alert
-                            key: webhook-url
-
-                    volumeMounts:
-                      - name: domains
-                        mountPath: /app/domains.txt
-                        subPath: domains.txt
-                        readOnly: true
-
-                      - name: state
-                        mountPath: /data
-
-                    resources:
-                      requests:
-                        cpu: "100m"
-                        memory: "256Mi"
-
-                      limits:
-                        cpu: "1000m"
-                        memory: "1Gi"
-
-                volumes:
-                  - name: domains
-                    configMap:
-                      name: portal-monitor-config
-
-                  - name: state
-                    persistentVolumeClaim:
-                      claimName: portal-monitor-state-test
-          EOF
-
           kubectl delete job portal-monitor-test \
             -n "$NAMESPACE" \
             --ignore-not-found
 
-          kubectl apply \
-            -f /tmp/test-job.yaml
+          # Wait until the old Job is fully gone before recreate
+          kubectl wait \
+            --namespace "$NAMESPACE" \
+            --for=delete \
+            --timeout=60s \
+            job/portal-monitor-test \
+            2>/dev/null || true
+
+          sed "s|image: .*|image: ${IMAGE}|" k8s/test-job.yaml \
+            | kubectl apply -n "$NAMESPACE" -f -
 
       # --------------------------------------------------
       # Wait for Job
