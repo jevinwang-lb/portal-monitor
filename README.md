@@ -150,7 +150,7 @@ portal-monitor/
 ├── .github/
 │   └── workflows/
 │       ├── docker-publish.yml
-│       ├── cd-test.yml
+│       ├── cd-test-job.yml
 │       └── cd-cronjob.yml
 │
 ├── app/
@@ -1071,12 +1071,14 @@ jevinwanglb/portal-monitor:v1.0.1
 
 ### 4.2 Test CD
 
-Test CD：
+工作流：`.github/workflows/cd-test-job.yml`
+
+`main` 上 CI 成功后自动跑 Test Job，镜像是 `sha-xxxxxxx`：
 
 ```text
 CI success
     ↓
-CD Test
+CD Test Job
     ↓
 Deploy sha-xxxxxxx
     ↓
@@ -1087,24 +1089,28 @@ portal-monitor-state-test
 Completed
 ```
 
-Test Job 自动使用最新 SHA Image。
+打 `v*` tag 会再构建一份生产镜像，**不会**自动跑 Test Job。上生产前用同一个 tag 手动跑一次：
+
+Actions → **CD - Test** → Run workflow → `image_tag` 填 `v1.0.1`
 
 ---
 
 ### 4.3 Production CD
 
-Production：
+工作流：`.github/workflows/cd-cronjob.yml`（手动，输入 `v1.x.x`）
 
 ```text
-Test Passed
+SHA Test Passed
     ↓
-Release v1.x.x
+git tag v1.x.x  (打在已测过的那个 commit 上)
+    ↓
+Docker Hub :v1.x.x
+    ↓
+CD Test Job (手动，同一 tag)
     ↓
 CD Production
     ↓
 Update CronJob
-    ↓
-Production PVC
 ```
 
 查看 Production 当前 Image：
@@ -1176,6 +1182,8 @@ Docker Hub :sha-xxxxxxx
       Git Tag v1.x.x
           ↓
  Docker Hub :v1.x.x
+          ↓
+  Manual Test Job (same tag)
           ↓
     Production CD
           ↓

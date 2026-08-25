@@ -479,7 +479,7 @@
             <tr><td><code>k8s/cronjob.yaml</code></td><td>生产：每 10 分钟，挂生产 PVC。镜像为 <code>IMAGE_PLACEHOLDER</code>，由 CD 注入</td></tr>
             <tr><td><code>k8s/test-job.yaml</code></td><td>一次性测试 Job，挂<strong>测试 PVC</strong></td></tr>
             <tr><td><code>docker-publish.yml</code></td><td>CI：构建并推送 Docker Hub 镜像</td></tr>
-            <tr><td><code>cd-test.yml</code></td><td>CI 后自动跑测试 Job，挂<strong>测试 PVC</strong></td></tr>
+            <tr><td><code>cd-test-job.yml</code></td><td>CI 后自动跑测试 Job，挂<strong>测试 PVC</strong>；也可手动填 <code>v*</code> tag</td></tr>
             <tr><td><code>cd-cronjob.yml</code></td><td>手动把指定版本发布到生产 CronJob</td></tr>
           </tbody>
         </table>
@@ -565,13 +565,13 @@ python app/monitor.py</pre>
           <li>gp3 多为 <code>WaitForFirstConsumer</code>：PVC 可能先 Pending，第一个用盘的 Pod 调度后才 Bound。</li>
           <li>删 Job / Pod，不要删 PVC，否则下次会当成首次检查，UNSAFE 可能再告一次。</li>
           <li>手工立刻跑生产：先 <code>suspend: true</code>，再 <code>kubectl create job --from=cronjob/portal-monitor …</code>。<code>Forbid</code> 不管手工 Job；和生产 Cron 同时跑会抢同一块 RWO。</li>
-          <li><code>cd-test.yml</code> 挂测试 PVC；生产只走 <code>cd-cronjob.yml</code>。</li>
+          <li><code>cd-test-job.yml</code> 挂测试 PVC；生产只走 <code>cd-cronjob.yml</code>。不要直接 apply 带 <code>IMAGE_PLACEHOLDER</code> 的 yaml。</li>
         </ul>
       </section>
 
       <section id="cicd">
         <h2>4. CI / CD</h2>
-        <p class="muted">测试跟 commit SHA，生产跟 Semver tag。不要把未验证的 <code>sha-…</code> 直接指到 CronJob。</p>
+        <p class="muted">日常测试跟 <code>main</code> 的 SHA；生产跟 Semver tag。不要把未验证的 <code>sha-…</code> 直接指到 CronJob。</p>
 
         <div class="pipe">
           <div class="pipe-step">
@@ -588,7 +588,7 @@ python app/monitor.py</pre>
             <span class="label">2 · 测试 CD</span>
             <strong>自动或手动跑 Test Job</strong>
             <p>
-              CI 成功后触发 <code>cd-test.yml</code>（也可手动填 tag）。
+              CI 成功后 <code>cd-test-job.yml</code> 自动跑 SHA 镜像（也可手动填 tag）。
               Runner <code>arc-runner-set-portal</code> apply 测试 PVC + ConfigMap，跑
               <code>portal-monitor-test</code> 并打日志。
             </p>
@@ -598,8 +598,9 @@ python app/monitor.py</pre>
             <span class="label">3 · Release</span>
             <strong>确认无误后打 Git tag</strong>
             <p>
-              例如 <code>v1.0.1</code>，再产出
+              打在已测过的 commit 上，例如 <code>v1.0.1</code>，产出
               <code>jevinwanglb/portal-monitor:v1.0.1</code>。
+              这份 tag 镜像不会自动进 Test Job。
             </p>
           </div>
           <div class="pipe-arrow">↓</div>
@@ -607,7 +608,8 @@ python app/monitor.py</pre>
             <span class="label">4 · 生产 CD</span>
             <strong>手动更新 CronJob</strong>
             <p>
-              跑 <code>cd-cronjob.yml</code>，输入版本 tag，更新生产 CronJob 镜像。
+              先用同一 tag 手动跑 <code>cd-test-job.yml</code>，通过后再跑
+              <code>cd-cronjob.yml</code> 更新生产 CronJob。
             </p>
           </div>
         </div>
@@ -615,6 +617,7 @@ python app/monitor.py</pre>
         <ul>
           <li>改域名：改 <code>k8s/configmap.yaml</code> 再 apply；解析逻辑变了必须发新镜像。</li>
           <li>CD runner 需要能 <code>kubectl</code> 到 <code>portal-monitor</code> namespace。</li>
+          <li>上生产前：Actions → CD - Test → <code>image_tag=v1.x.x</code>，过了再跑生产 CD。</li>
         </ul>
       </section>
 
