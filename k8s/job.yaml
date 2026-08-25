@@ -72,7 +72,7 @@ spec:
         # ConfigMap → domains.txt
         - name: domains
           configMap:
-            name: portal-monitor-config
+            name: portal-monitor-config-test
 
         # PVC → /data
         - name: state

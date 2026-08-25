@@ -92,7 +92,7 @@ jobs:
       - name: Deploy test ConfigMap
         run: |
           kubectl apply \
-            -f k8s/configmap.yaml \
+            -f k8s/test-configmap.yaml \
             -n "$NAMESPACE"
 
       # --------------------------------------------------

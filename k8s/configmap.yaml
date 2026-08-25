@@ -6,7 +6,7 @@ data:
   domains.txt: |
     bilibili.com
     www.baidu.com
-    portal.boruxa.com
-    testsafebrowsing.appspot.com/apiv4/ANY_PLATFORM/MALWARE/URL/
-    testsafebrowsing.appspot.com/apiv4/ANY_PLATFORM/SOCIAL_ENGINEERING/URL/
-    testsafebrowsing.appspot.com/apiv4/ANY_PLATFORM/UNWANTED_SOFTWARE/URL/
+    # portal.boruxa.com
+    # testsafebrowsing.appspot.com/apiv4/ANY_PLATFORM/MALWARE/URL/
+    # testsafebrowsing.appspot.com/apiv4/ANY_PLATFORM/SOCIAL_ENGINEERING/URL/
+    # testsafebrowsing.appspot.com/apiv4/ANY_PLATFORM/UNWANTED_SOFTWARE/URL/
