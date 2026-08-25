@@ -127,6 +127,18 @@ WEBHOOK_VERIFY_TLS = (
 )
 
 
+# Test Job should fail the pipeline on CHECK_ERROR / webhook errors.
+# Production CronJob leaves this unset / false so a flaky check
+# does not mark the CronJob failed.
+FAIL_ON_ERROR = (
+    os.environ.get(
+        "FAIL_ON_ERROR",
+        "false",
+    ).lower()
+    == "true"
+)
+
+
 # ------------------------------------------------------------
 # Timeouts
 # ------------------------------------------------------------
@@ -854,6 +866,11 @@ def main():
     )
 
     print(
+        "Fail on error:",
+        FAIL_ON_ERROR,
+    )
+
+    print(
         "=" * 60
     )
 
@@ -889,6 +906,8 @@ def main():
     notification_events = []
 
     monitor_errors = []
+
+    webhook_failures = 0
 
 
     # --------------------------------------------------------
@@ -1254,6 +1273,8 @@ def main():
                     e,
                 )
 
+                webhook_failures += 1
+
     else:
 
         print()
@@ -1290,6 +1311,18 @@ def main():
 
     print(
         "=" * 60
+    )
+
+    exit_code = 0
+
+    if monitor_errors or webhook_failures:
+
+        if FAIL_ON_ERROR:
+
+            exit_code = 1
+
+    sys.exit(
+        exit_code
     )
 
 

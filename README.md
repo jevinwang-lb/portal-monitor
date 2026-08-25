@@ -149,7 +149,7 @@ SAFE → SAFE
 portal-monitor/
 ├── .github/
 │   └── workflows/
-│       ├── ci.yml
+│       ├── docker-publish.yml
 │       ├── cd-test.yml
 │       └── cd-cronjob.yml
 │
@@ -161,7 +161,8 @@ portal-monitor/
 │   ├── pvc.yaml
 │   ├── test-pvc.yaml
 │   ├── configmap.yaml
-│   ├── job.yaml
+│   ├── test-configmap.yaml
+│   ├── test-job.yaml
 │   └── cronjob.yaml
 │
 ├── Dockerfile
@@ -692,6 +693,10 @@ STATUS: Complete
 
 不会持续占用 CPU / Memory。
 
+镜像由 CD 写入 `IMAGE_PLACEHOLDER`。不要直接 `kubectl apply -f k8s/test-job.yaml`。
+
+测试 Job 设置了 `FAIL_ON_ERROR=true`：`CHECK_ERROR` 或 Webhook 失败时进程非 0 退出，CD 会失败。
+
 ---
 
 ### 3.9 Production CronJob
@@ -729,6 +734,8 @@ kubectl get cronjob portal-monitor
 
 分钟执行。
 
+镜像由 `cd-cronjob.yml` 把 `IMAGE_PLACEHOLDER` 换成 `v1.x.x` 后 apply。不要直接 `kubectl apply -f k8s/cronjob.yaml`。
+
 CronJob 使用：
 
 ```yaml
@@ -741,9 +748,15 @@ concurrencyPolicy: Forbid
 
 ### 3.10 Manual Trigger CronJob
 
-无需等待 10 分钟：
+生产 PVC 是 RWO。手工 Job 和到点的 CronJob 会抢同一块盘。
+
+先暂停 CronJob，再手工创建：
 
 ```bash
+kubectl patch cronjob portal-monitor \
+  --type merge \
+  -p '{"spec":{"suspend":true}}'
+
 kubectl create job \
   --from=cronjob/portal-monitor \
   portal-monitor-manual-test
@@ -765,7 +778,7 @@ kubectl delete job portal-monitor-manual-test
 
 注意：
 
-`concurrencyPolicy: Forbid` 只限制 CronJob 自动创建的 Job，不限制手工创建的 Job。
+`concurrencyPolicy: Forbid` 只限制 CronJob 自动创建的 Job，不限制手工创建的 Job。手工跑完后记得恢复 `suspend: false`。
 
 ---
 

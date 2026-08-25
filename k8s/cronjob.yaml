@@ -15,6 +15,7 @@ spec:
   jobTemplate:
     spec:
       backoffLimit: 1
+      activeDeadlineSeconds: 480
 
       template:
         metadata:
@@ -27,7 +28,8 @@ spec:
           containers:
             - name: portal-monitor
 
-              image: jevinwanglb/portal-monitor:v1.0.0
+              # Replaced by CD: sed IMAGE_PLACEHOLDER
+              image: IMAGE_PLACEHOLDER
 
               imagePullPolicy: IfNotPresent
 

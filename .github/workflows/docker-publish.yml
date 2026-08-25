@@ -13,9 +13,7 @@ on:
       - "Dockerfile"
       - "requirements.txt"
       - "domains.txt"
-      - "k8s/configmap.yaml"
       - ".github/workflows/docker-publish.yml"
-      - ".github/workflows/cd-test.yml"
 
   workflow_dispatch:
 

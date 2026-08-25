@@ -7,6 +7,8 @@ __pycache__/
 
 status.json
 status.json.tmp
+status copy.bak
+docker-state/
 
 debug_*.txt
 *.log
@@ -17,7 +19,6 @@ debug_*.txt
 !.env.example
 
 k8s/secret.yaml
-*secret*.yaml
 
 .DS_Store
 

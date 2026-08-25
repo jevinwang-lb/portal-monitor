@@ -476,12 +476,11 @@
             <tr><td><code>k8s/configmap.yaml</code></td><td>集群监控列表（改域名只 apply，不必重建镜像）</td></tr>
             <tr><td><code>k8s/pvc.yaml</code></td><td>生产状态盘 <code>portal-monitor-state</code></td></tr>
             <tr><td><code>k8s/test-pvc.yaml</code></td><td>测试状态盘 <code>portal-monitor-state-test</code></td></tr>
-            <tr><td><code>k8s/cronjob.yaml</code></td><td>生产：每 10 分钟，挂生产 PVC</td></tr>
-            <tr><td><code>k8s/job.yaml</code></td><td>一次性 Job 模板；当前仍挂<strong>生产 PVC</strong></td></tr>
+            <tr><td><code>k8s/cronjob.yaml</code></td><td>生产：每 10 分钟，挂生产 PVC。镜像为 <code>IMAGE_PLACEHOLDER</code>，由 CD 注入</td></tr>
+            <tr><td><code>k8s/test-job.yaml</code></td><td>一次性测试 Job，挂<strong>测试 PVC</strong></td></tr>
             <tr><td><code>docker-publish.yml</code></td><td>CI：构建并推送 Docker Hub 镜像</td></tr>
             <tr><td><code>cd-test.yml</code></td><td>CI 后自动跑测试 Job，挂<strong>测试 PVC</strong></td></tr>
             <tr><td><code>cd-cronjob.yml</code></td><td>手动把指定版本发布到生产 CronJob</td></tr>
-            <tr><td><code>cd-job.yml</code></td><td>手动跑 Job（挂生产 PVC）</td></tr>
           </tbody>
         </table>
         <p class="muted">不要提交：<code>status.json</code>、<code>debug_*.txt / .png</code>、<code>docker-state/</code>、Webhook URL、<code>.env</code>。</p>
@@ -506,6 +505,7 @@ python app/monitor.py</pre>
             <tr><td><code>IGNORE_HTTPS_ERRORS</code></td><td>浏览 Google 页时忽略证书错误</td></tr>
             <tr><td><code>ALERT_WEBHOOK_URL</code></td><td>Teams / Power Automate 触发器</td></tr>
             <tr><td><code>WEBHOOK_VERIFY_TLS</code></td><td>POST Webhook 时校验 TLS；生产应为 true</td></tr>
+            <tr><td><code>FAIL_ON_ERROR</code></td><td><code>true</code> 时 CHECK_ERROR / Webhook 失败以非 0 退出；测试 Job 开启，生产默认关</td></tr>
             <tr><td><code>NAVIGATION_TIMEOUT_MS</code></td><td>打开页面超时</td></tr>
             <tr><td><code>RESULT_TIMEOUT_MS</code></td><td>等待结论文案超时</td></tr>
             <tr><td><code>MAX_RETRIES</code></td><td>默认 3</td></tr>
@@ -564,8 +564,8 @@ python app/monitor.py</pre>
         <ul>
           <li>gp3 多为 <code>WaitForFirstConsumer</code>：PVC 可能先 Pending，第一个用盘的 Pod 调度后才 Bound。</li>
           <li>删 Job / Pod，不要删 PVC，否则下次会当成首次检查，UNSAFE 可能再告一次。</li>
-          <li>手工立刻跑生产：<code>kubectl create job --from=cronjob/portal-monitor …</code>。<code>Forbid</code> 不管手工 Job；若 Cron 同时在跑，两台抢同一块 RWO 会卡住。</li>
-          <li><code>cd-test.yml</code> 挂测试 PVC；仓库里的 <code>k8s/job.yaml</code> 和 <code>cd-job.yml</code> 仍挂生产 PVC。</li>
+          <li>手工立刻跑生产：先 <code>suspend: true</code>，再 <code>kubectl create job --from=cronjob/portal-monitor …</code>。<code>Forbid</code> 不管手工 Job；和生产 Cron 同时跑会抢同一块 RWO。</li>
+          <li><code>cd-test.yml</code> 挂测试 PVC；生产只走 <code>cd-cronjob.yml</code>。</li>
         </ul>
       </section>
 

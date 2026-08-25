@@ -14,5 +14,6 @@ RUN mkdir -p /data
 ENV DOMAINS_FILE=/app/domains.txt
 ENV STATE_FILE=/data/status.json
 ENV PLAYWRIGHT_HEADLESS=true
+ENV IGNORE_HTTPS_ERRORS=false
 
 CMD ["python", "/app/app/monitor.py"]

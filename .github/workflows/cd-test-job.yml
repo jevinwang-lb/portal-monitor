@@ -36,6 +36,8 @@ jobs:
       # --------------------------------------------------
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       # --------------------------------------------------
       # Install kubectl
@@ -119,7 +121,7 @@ jobs:
             job/portal-monitor-test \
             2>/dev/null || true
 
-          sed "s|image: .*|image: ${IMAGE}|" k8s/test-job.yaml \
+          sed "s|IMAGE_PLACEHOLDER|${IMAGE}|" k8s/test-job.yaml \
             | kubectl apply -n "$NAMESPACE" -f -
 
       # --------------------------------------------------
@@ -127,11 +129,19 @@ jobs:
       # --------------------------------------------------
       - name: Wait for test Job
         run: |
-          kubectl wait \
+          if ! kubectl wait \
             --namespace "$NAMESPACE" \
             --for=condition=complete \
             --timeout=10m \
-            job/portal-monitor-test
+            job/portal-monitor-test; then
+
+            FAILED=$(kubectl get job portal-monitor-test \
+              -n "$NAMESPACE" \
+              -o jsonpath='{.status.failed}')
+
+            echo "Job did not complete successfully (failed=${FAILED:-0})"
+            exit 1
+          fi
 
       # --------------------------------------------------
       # Show logs

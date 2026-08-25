@@ -50,16 +50,13 @@ jobs:
 
       - name: Deploy CronJob
         run: |
-          kubectl apply \
-            -n "$NAMESPACE" \
-            -f k8s/cronjob.yaml
+          IMAGE="${IMAGE_NAME}:${{ inputs.image_tag }}"
 
-      - name: Update CronJob image
-        run: |
-          kubectl set image \
-            cronjob/portal-monitor \
-            portal-monitor="${IMAGE_NAME}:${{ inputs.image_tag }}" \
-            -n "$NAMESPACE"
+          echo "Using image:"
+          echo "$IMAGE"
+
+          sed "s|IMAGE_PLACEHOLDER|${IMAGE}|" k8s/cronjob.yaml \
+            | kubectl apply -n "$NAMESPACE" -f -
 
       - name: Verify deployment
         run: |

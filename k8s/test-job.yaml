@@ -6,6 +6,8 @@ metadata:
 
 spec:
   backoffLimit: 0
+  ttlSecondsAfterFinished: 86400
+  activeDeadlineSeconds: 480
 
   template:
     metadata:
@@ -18,8 +20,8 @@ spec:
       containers:
         - name: portal-monitor
 
-          # Image is overridden by CD workflow (kubectl / sed)
-          image: jevinwanglb/portal-monitor:latest
+          # Replaced by CD: sed IMAGE_PLACEHOLDER
+          image: IMAGE_PLACEHOLDER
           imagePullPolicy: Always
 
           env:
@@ -36,6 +38,9 @@ spec:
               value: "false"
 
             - name: WEBHOOK_VERIFY_TLS
+              value: "true"
+
+            - name: FAIL_ON_ERROR
               value: "true"
 
             - name: ALERT_WEBHOOK_URL
