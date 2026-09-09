@@ -1,2 +1,3 @@
 bilibili.com
-www.baidu.com
+#www.baidu.com
+#testsafebrowsing.appspot.com/s/malware.html
