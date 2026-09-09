@@ -1,0 +1,77 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: portal-monitor-test
+  namespace: portal-monitor
+
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 86400
+  activeDeadlineSeconds: 480
+
+  template:
+    metadata:
+      labels:
+        app: portal-monitor-test
+
+    spec:
+      restartPolicy: Never
+
+      containers:
+        - name: portal-monitor
+
+          # Replaced by CD: sed IMAGE_PLACEHOLDER
+          image: IMAGE_PLACEHOLDER
+          imagePullPolicy: Always
+
+          env:
+            - name: DOMAINS_FILE
+              value: /app/domains.txt
+
+            - name: STATE_FILE
+              value: /data/status.json
+
+            - name: PLAYWRIGHT_HEADLESS
+              value: "true"
+
+            - name: IGNORE_HTTPS_ERRORS
+              value: "false"
+
+            - name: WEBHOOK_VERIFY_TLS
+              value: "true"
+
+            - name: FAIL_ON_ERROR
+              value: "true"
+
+            - name: ALERT_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: portal-monitor-alert
+                  key: webhook-url
+
+          volumeMounts:
+            - name: domains
+              mountPath: /app/domains.txt
+              subPath: domains.txt
+              readOnly: true
+
+            - name: state
+              mountPath: /data
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+
+      volumes:
+        - name: domains
+          configMap:
+            name: portal-monitor-config-test
+
+        - name: state
+          persistentVolumeClaim:
+            claimName: portal-monitor-state-test

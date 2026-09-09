@@ -1,0 +1,15 @@
+.venv/
+.git/
+.github/
+__pycache__/
+*.pyc
+status.json
+status.json.tmp
+debug_*.txt
+*.log
+*.png
+README.md
+k8s/
+.env
+.env.*
+.DS_Store
