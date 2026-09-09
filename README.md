@@ -1,4 +1,4 @@
-# Portal Safe Browsing Monitor
+# Portal Safe Browsing Monitor 
 
 - [Portal Safe Browsing Monitor](#portal-safe-browsing-monitor)
   - [Overview](#overview)
@@ -1197,3 +1197,4 @@ Docker Hub :sha-xxxxxxx
           ↓
       Teams Alert
 ```
+
