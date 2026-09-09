@@ -1197,4 +1197,3 @@ Docker Hub :sha-xxxxxxx
           ↓
       Teams Alert
 ```
-
