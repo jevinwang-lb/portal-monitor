@@ -25,6 +25,9 @@ spec:
         spec:
           restartPolicy: Never
 
+          imagePullSecrets:
+            - name: dockerhub
+
           containers:
             - name: portal-monitor
 
