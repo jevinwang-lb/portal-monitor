@@ -519,7 +519,7 @@ python app/monitor.py</pre>
         <pre>docker run --rm --ipc=host \
   -v "$PWD/docker-state:/data" \
   -e ALERT_WEBHOOK_URL=… \
-  jevinwanglb/portal-monitor:sha-xxxxxxx</pre>
+  lifebytehub/portal-monitor:sha-xxxxxxx</pre>
         <p class="muted">开发镜像用 <code>sha-xxxxxxx</code>，生产用 <code>v1.x.x</code>。不要把未验证的 SHA 直接指到 CronJob。</p>
       </section>
 
@@ -580,7 +580,7 @@ python app/monitor.py</pre>
             <p>
               改了 <code>app</code> / <code>Dockerfile</code> / <code>requirements</code> 等会触发
               <code>docker-publish.yml</code>，推送
-              <code>jevinwanglb/portal-monitor:sha-&lt;7位&gt;</code>。
+              <code>lifebytehub/portal-monitor:sha-&lt;7位&gt;</code>。
             </p>
           </div>
           <div class="pipe-arrow">↓</div>
@@ -599,7 +599,7 @@ python app/monitor.py</pre>
             <strong>确认无误后打 Git tag</strong>
             <p>
               打在已测过的 commit 上，例如 <code>v1.0.1</code>，产出
-              <code>jevinwanglb/portal-monitor:v1.0.1</code>。
+              <code>lifebytehub/portal-monitor:v1.0.1</code>。
               这份 tag 镜像不会自动进 Test Job。
             </p>
           </div>

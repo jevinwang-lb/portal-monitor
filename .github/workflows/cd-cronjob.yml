@@ -9,7 +9,7 @@ on:
 
 env:
   KUBE_LATEST_VERSION: "v1.36.0"
-  IMAGE_NAME: "jevinwanglb/portal-monitor"
+  IMAGE_NAME: "lifebytehub/portal-monitor"
   NAMESPACE: "portal-monitor"
 
 jobs:

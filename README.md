@@ -375,26 +375,26 @@ Build：
 ```bash
 docker buildx build \
   --platform linux/amd64 \
-  -t jevinwanglb/portal-monitor:test \
+  -t lifebytehub/portal-monitor:test \
   .
 ```
 
 Push：
 
 ```bash
-docker login -u jevinwanglb
+docker login
 ```
 
 然后：
 
 ```bash
-docker push jevinwanglb/portal-monitor:test
+docker push lifebytehub/portal-monitor:test
 ```
 
 正式 CI 使用：
 
 ```text
-jevinwanglb/portal-monitor
+lifebytehub/portal-monitor
 ```
 
 ---
@@ -404,14 +404,14 @@ jevinwanglb/portal-monitor
 开发提交使用 Git SHA：
 
 ```text
-jevinwanglb/portal-monitor:sha-96b8ec3
+lifebytehub/portal-monitor:sha-96b8ec3
 ```
 
 正式 Release：
 
 ```text
-jevinwanglb/portal-monitor:v1.0.0
-jevinwanglb/portal-monitor:v1.0.1
+lifebytehub/portal-monitor:v1.0.0
+lifebytehub/portal-monitor:v1.0.1
 ```
 
 推荐流程：
@@ -1051,7 +1051,7 @@ sha-xxxxxxx
 例如：
 
 ```text
-jevinwanglb/portal-monitor:sha-c0691a8
+lifebytehub/portal-monitor:sha-c0691a8
 ```
 
 Git Tag：
@@ -1064,7 +1064,7 @@ git push origin v1.0.1
 生成：
 
 ```text
-jevinwanglb/portal-monitor:v1.0.1
+lifebytehub/portal-monitor:v1.0.1
 ```
 
 ---
@@ -1123,7 +1123,7 @@ kubectl get cronjob portal-monitor \
 例如：
 
 ```text
-jevinwanglb/portal-monitor:v1.0.0
+lifebytehub/portal-monitor:v1.0.0
 ```
 
 ---
