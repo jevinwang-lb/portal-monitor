@@ -1,0 +1,83 @@
+name: CD - Deploy ECS
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag, e.g. v1.0.1 or sha-3b39a99"
+        required: true
+
+env:
+  AWS_REGION: ap-east-1
+  IMAGE_NAME: lifebytehub/portal-monitor
+  ECS_TASK_FAMILY: portal-monitor
+  EVENTBRIDGE_RULE: portal-monitor-schedule
+
+jobs:
+  deploy:
+    name: Deploy ECS scheduled task
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: portal-monitor-cd-ecs
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Register new task definition revision
+        id: taskdef
+        run: |
+          IMAGE="${IMAGE_NAME}:${{ inputs.image_tag }}"
+          echo "Using image: $IMAGE"
+
+          aws ecs describe-task-definition \
+            --task-definition "$ECS_TASK_FAMILY" \
+            --query taskDefinition \
+            --output json \
+            > /tmp/taskdef.json
+
+          jq \
+            --arg IMAGE "$IMAGE" \
+            'del(
+              .taskDefinitionArn,
+              .revision,
+              .status,
+              .requiresAttributes,
+              .compatibilities,
+              .registeredAt,
+              .registeredBy,
+              .deregisteredAt
+            )
+            | .containerDefinitions[0].image = $IMAGE' \
+            /tmp/taskdef.json \
+            > /tmp/taskdef-new.json
+
+          NEW_ARN=$(aws ecs register-task-definition \
+            --cli-input-json file:///tmp/taskdef-new.json \
+            --query taskDefinition.taskDefinitionArn \
+            --output text)
+
+          echo "arn=$NEW_ARN" >> "$GITHUB_OUTPUT"
+          echo "Registered: $NEW_ARN"
+
+      - name: Point EventBridge rule at new revision
+        run: |
+          TARGET=$(aws events list-targets-by-rule \
+            --rule "$EVENTBRIDGE_RULE" \
+            --query 'Targets[0]' \
+            --output json)
+
+          echo "$TARGET" \
+            | jq -c --arg arn "${{ steps.taskdef.outputs.arn }}" \
+              '[.EcsParameters.TaskDefinitionArn = $arn]' \
+            > /tmp/targets.json
+
+          aws events put-targets \
+            --rule "$EVENTBRIDGE_RULE" \
+            --targets file:///tmp/targets.json

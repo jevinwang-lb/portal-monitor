@@ -1,0 +1,18 @@
+{
+  "Id": "portal-monitor",
+  "Arn": "arn:aws:ecs:ap-east-1:YOUR_ACCOUNT_ID:cluster/YOUR_CLUSTER",
+  "RoleArn": "arn:aws:iam::YOUR_ACCOUNT_ID:role/portal-monitor-events-ecs",
+  "EcsParameters": {
+    "TaskDefinitionArn": "arn:aws:ecs:ap-east-1:YOUR_ACCOUNT_ID:task-definition/portal-monitor",
+    "TaskCount": 1,
+    "LaunchType": "FARGATE",
+    "PlatformVersion": "LATEST",
+    "NetworkConfiguration": {
+      "awsvpcConfiguration": {
+        "Subnets": ["subnet-YOUR_SUBNET_A", "subnet-YOUR_SUBNET_B"],
+        "SecurityGroups": ["sg-YOUR_ECS_TASK_SG"],
+        "AssignPublicIp": "ENABLED"
+      }
+    }
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "family": "portal-monitor",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048",
+  "executionRoleArn": "arn:aws:iam::YOUR_ACCOUNT_ID:role/portal-monitor-ecs-execution",
+  "taskRoleArn": "arn:aws:iam::YOUR_ACCOUNT_ID:role/portal-monitor-ecs-task",
+  "runtimePlatform": {
+    "cpuArchitecture": "X86_64",
+    "operatingSystemFamily": "LINUX"
+  },
+  "containerDefinitions": [
+    {
+      "name": "portal-monitor",
+      "image": "lifebytehub/portal-monitor:REPLACE_IMAGE_TAG",
+      "essential": true,
+      "environment": [
+        { "name": "DOMAINS_FILE", "value": "/app/domains.txt" },
+        { "name": "STATE_FILE", "value": "/data/status.json" },
+        { "name": "PLAYWRIGHT_HEADLESS", "value": "true" },
+        { "name": "IGNORE_HTTPS_ERRORS", "value": "false" },
+        { "name": "WEBHOOK_VERIFY_TLS", "value": "true" }
+      ],
+      "secrets": [
+        {
+          "name": "ALERT_WEBHOOK_URL",
+          "valueFrom": "arn:aws:secretsmanager:ap-east-1:YOUR_ACCOUNT_ID:secret:portal-monitor/alert-webhook-url"
+        }
+      ],
+      "mountPoints": [
+        {
+          "sourceVolume": "state",
+          "containerPath": "/data",
+          "readOnly": false
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/portal-monitor",
+          "awslogs-region": "ap-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "repositoryCredentials": {
+        "credentialsParameter": "arn:aws:secretsmanager:ap-east-1:YOUR_ACCOUNT_ID:secret:portal-monitor/dockerhub"
+      }
+    }
+  ],
+  "volumes": [
+    {
+      "name": "state",
+      "efsVolumeConfiguration": {
+        "fileSystemId": "fs-YOUR_EFS_ID",
+        "transitEncryption": "ENABLED",
+        "authorizationConfig": {
+          "accessPointId": "fsap-YOUR_ACCESS_POINT_ID",
+          "iam": "DISABLED"
+        }
+      }
+    }
+  ]
+}
