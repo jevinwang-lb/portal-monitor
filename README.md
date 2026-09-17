@@ -35,6 +35,7 @@
     - [4.1 CI](#41-ci)
     - [4.2 Test CD](#42-test-cd)
     - [4.3 Production CD](#43-production-cd)
+    - [4.4 ECS create and publish](#44-ecs-create-and-publish)
   - [Google Web Risk](#google-web-risk)
   - [Current Deployment Model](#current-deployment-model)
 
@@ -1125,6 +1126,36 @@ kubectl get cronjob portal-monitor \
 ```text
 lifebytehub/portal-monitor:v1.0.0
 ```
+
+---
+
+### 4.4 ECS create and publish
+
+一次性创建（EFS、IAM、cluster、task、EventBridge）：
+
+```text
+ecs/SETUP.md
+```
+
+创建 + 以后怎么发版：
+
+```text
+ecs/FLOW.md
+```
+
+生产发版（ECS）：
+
+```text
+git tag v1.0.1 && git push origin v1.0.1
+        ↓
+Docker Hub :v1.0.1
+        ↓
+Actions → CD - Deploy ECS → image_tag=v1.0.1
+        ↓
+新 task revision + EventBridge 指向它
+```
+
+状态在 EFS `/data/status.json`，发版不会清空。
 
 ---
 

@@ -1,5 +1,7 @@
 # Portal Monitor — ECS Fargate 完整创建流程
 
+创建 + 发版总览见 **[FLOW.md](FLOW.md)**。本文是创建资源的 CLI。
+
 状态文件在 **EFS `/data/status.json`**。GitHub Action（`.github/workflows/cd-ecs.yml`）只更新镜像，**不创建**下面这些资源。按顺序在本机执行（已配置 `aws` CLI，区域默认 `ap-east-1`）。
 
 先填变量：
