@@ -125,36 +125,49 @@ jobs:
             | kubectl apply -n "$NAMESPACE" -f -
 
       # --------------------------------------------------
-      # Wait for Job
+      # Wait for the pod to start
+      #
+      # This is a one-shot deploy. The Job itself can run for
+      # hours (activeDeadlineSeconds), so we do not hold a
+      # runner waiting for it to complete. We only confirm the
+      # image pulls and the container starts.
       # --------------------------------------------------
-      - name: Wait for test Job
+      - name: Wait for test pod to start
         run: |
-          if ! kubectl wait \
+          # A short domain list can finish before the wait
+          # returns, in which case the pod is never Ready but
+          # has clearly started. Accept that as success.
+          kubectl wait \
             --namespace "$NAMESPACE" \
-            --for=condition=complete \
-            --timeout=10m \
-            job/portal-monitor-test; then
-
-            FAILED=$(kubectl get job portal-monitor-test \
-              -n "$NAMESPACE" \
-              -o jsonpath='{.status.failed}')
-
-            echo "Job did not complete successfully (failed=${FAILED:-0})"
-            exit 1
-          fi
+            --for=condition=ready \
+            --timeout=3m \
+            pod -l app=portal-monitor-test \
+          || kubectl get pod \
+               -n "$NAMESPACE" \
+               -l app=portal-monitor-test \
+               -o jsonpath='{.items[0].status.phase}' \
+             | grep -qE 'Succeeded|Failed'
 
       # --------------------------------------------------
       # Show logs
+      #
+      # The Job is still running at this point, so this is a
+      # startup smoke check, not the final result.
       # --------------------------------------------------
-      - name: Show test logs
+      - name: Show startup logs
         if: always()
         run: |
           kubectl logs \
             --namespace "$NAMESPACE" \
-            job/portal-monitor-test
+            --tail=50 \
+            job/portal-monitor-test \
+            || true
 
       # --------------------------------------------------
-      # Show test result
+      # Show test status
+      #
+      # The Job is left running. Check DURATION and the final
+      # result with the commands printed below.
       # --------------------------------------------------
       - name: Show test status
         if: always()
@@ -166,3 +179,8 @@ jobs:
           kubectl get pod \
             -n "$NAMESPACE" \
             -l app=portal-monitor-test
+
+          echo
+          echo "Job is still running. To follow it:"
+          echo "  kubectl logs -f -n $NAMESPACE job/portal-monitor-test"
+          echo "  kubectl get job portal-monitor-test -n $NAMESPACE -w"

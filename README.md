@@ -49,7 +49,7 @@ Google Transparency Report
         ↓
 Python + Playwright
         ↓
-SAFE / UNSAFE / UNKNOWN / NO_DATA
+SAFE / UNSAFE / UNKNOWN / NO_DATA / BLOCKED
         ↓
 status.json 状态比较
         ↓
@@ -76,6 +76,7 @@ Production 运行在 Kubernetes CronJob 中，每 10 分钟检查一次。
 | `UNSAFE`      | Google 判定网站或部分页面存在风险 |
 | `UNKNOWN`     | Google 无法明确判断               |
 | `NO_DATA`     | Google 暂无该站点数据             |
+| `BLOCKED`     | Google 返回反爬拦截页，本次无结果 |
 | `CHECK_ERROR` | 页面访问或检测过程异常            |
 
 支持识别的 UNSAFE 页面结果包括：
@@ -139,7 +140,61 @@ SAFE → SAFE
 → 不通知
 ```
 
-`UNKNOWN / NO_DATA / CHECK_ERROR` 不覆盖之前已经存在的有效 `SAFE / UNSAFE` 状态。
+`UNKNOWN / NO_DATA / BLOCKED / CHECK_ERROR` 不覆盖之前已经存在的有效 `SAFE / UNSAFE` 状态。
+
+---
+
+### Google 反爬拦截
+
+Transparency Report 不是公开 API，Google 会按出口 IP 和浏览器指纹限流。被判定为自动化请求时，页面会跳转到 `www.google.com/sorry/index`：
+
+```text
+Our systems have detected unusual traffic from your computer network.
+```
+
+该页面不含任何 `SAFE / UNSAFE` 关键词，因此单独识别为 `BLOCKED`，避免被误判成 `UNKNOWN` 后静默沿用旧状态、让监控在无声中失明。
+
+`BLOCKED` 的处理与 `UNKNOWN` 不同：
+
+```text
+BLOCKED
+    ↓
+Teams Alert (monitor_blocked)
+    ↓
+保留上一次有效状态
+    ↓
+FAIL_ON_ERROR=true 时进程非 0 退出
+```
+
+Webhook 负载与 `status_changed` 字段结构一致，仅 `event` 不同，Power Automate 可用同一套 schema 解析：
+
+```json
+{
+  "event": "monitor_blocked",
+  "domain": "portal-test.example.com",
+  "previous": "SAFE",
+  "current": "BLOCKED",
+  "time": "2026-08-21T09:00:00+08:00"
+}
+```
+
+识别方式有两处，任一命中即判定 `BLOCKED`：
+
+```text
+1. 跳转后的 URL 包含 /sorry/
+2. 页面文本包含 unusual traffic from your computer network
+```
+
+降低触发概率的配置，均在 `k8s/cronjob.yaml` 与 `k8s/test-job.yaml` 中设置：
+
+```text
+CONCURRENCY=1              并发浏览器共用集群出口 IP，是主要诱因
+DOMAIN_DELAY_SECONDS       域名之间的抖动间隔，避免整轮呈现为突发请求
+BLOCKED_BACKOFF_SECONDS    被拦后指数退避，而非 2 秒硬重试
+USER_AGENT                 覆盖 Playwright Chromium 自带的 HeadlessChrome UA
+```
+
+这些只能降低概率。机房 / 共享 NAT 出口 IP 长期仍会被拦，根治方案是改用官方 Safe Browsing Lookup API，或为 Pod 分配独立 egress IP。
 
 ---
 
@@ -695,7 +750,16 @@ STATUS: Complete
 
 镜像由 CD 写入 `IMAGE_PLACEHOLDER`。不要直接 `kubectl apply -f k8s/test-job.yaml`。
 
-测试 Job 设置了 `FAIL_ON_ERROR=true`：`CHECK_ERROR` 或 Webhook 失败时进程非 0 退出，CD 会失败。
+测试 Job 设置了 `FAIL_ON_ERROR=true`：`CHECK_ERROR`、`BLOCKED` 或 Webhook 失败时进程非 0 退出，Job 被标记为 Failed。
+
+CD 是一次性部署，只等待 Pod 启动（3 分钟），不等待 Job 跑完，因此**不会**因为 Job 失败而失败。Job 的最终结果需要自行查看：
+
+```bash
+kubectl get job portal-monitor-test -n portal-monitor
+kubectl logs -f -n portal-monitor job/portal-monitor-test
+```
+
+`kubectl get job` 的 `DURATION` 列即本次跑完耗时。`activeDeadlineSeconds` 为 28800（8 小时），域名清单较大时留足余量。
 
 ---
 

@@ -56,10 +56,16 @@ spec:
                   value: "1"
 
                 - name: CONCURRENCY
-                  value: "3"
+                  value: "1"
 
                 - name: MAX_RETRIES
                   value: "2"
+
+                - name: DOMAIN_DELAY_SECONDS
+                  value: "5"
+
+                - name: BLOCKED_BACKOFF_SECONDS
+                  value: "30"
 
                 - name: ALERT_WEBHOOK_URL
                   valueFrom:

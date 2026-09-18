@@ -1,5 +1,6 @@
 import json
 import os
+import random
 import ssl
 import sys
 import threading
@@ -104,6 +105,21 @@ IGNORE_HTTPS_ERRORS = (
 
 
 # ------------------------------------------------------------
+# Browser identity
+#
+# Playwright's bundled Chromium advertises "HeadlessChrome"
+# in its User-Agent, which Google's anti-bot layer keys on.
+# ------------------------------------------------------------
+
+USER_AGENT = os.environ.get(
+    "USER_AGENT",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/140.0.0.0 Safari/537.36",
+)
+
+
+# ------------------------------------------------------------
 # Teams / Power Automate Webhook
 # ------------------------------------------------------------
 
@@ -172,8 +188,27 @@ RETRY_DELAY_SECONDS = int(
     )
 )
 
-# Local headed Chrome stays 1.
-# Kubernetes sets CONCURRENCY>1 to overlap Google page waits.
+# Base delay for the exponential backoff used after Google
+# serves its anti-bot page. Retrying a block after 2 seconds
+# only deepens it.
+BLOCKED_BACKOFF_SECONDS = int(
+    os.environ.get(
+        "BLOCKED_BACKOFF_SECONDS",
+        "15",
+    )
+)
+
+# Jittered pause between domains inside one browser worker,
+# so a run does not look like a burst from a single IP.
+DOMAIN_DELAY_SECONDS = float(
+    os.environ.get(
+        "DOMAIN_DELAY_SECONDS",
+        "3",
+    )
+)
+
+# Keep this at 1. Parallel browsers all share the cluster
+# egress IP, which is what trips Google's anti-bot page.
 CONCURRENCY = max(
     1,
     int(
@@ -396,10 +431,25 @@ UNKNOWN_PATTERNS = [
     "it’s hard to provide a simple safety status",
 ]
 
+# Google's anti-bot interstitial. It carries none of the
+# patterns above, so without this it would be misread as
+# UNKNOWN and silently ignored.
+BLOCKED_PATTERNS = [
+    "unusual traffic from your computer network",
+    "our systems have detected unusual traffic",
+    "not a robot",
+]
+
 
 def parse_status(body_text):
 
     body_lower = body_text.lower()
+
+    for pattern in BLOCKED_PATTERNS:
+
+        if pattern in body_lower:
+
+            return "BLOCKED"
 
     for pattern in UNSAFE_PATTERNS:
 
@@ -520,6 +570,7 @@ def wait_for_google_result(page):
         + SAFE_PATTERNS
         + NO_DATA_PATTERNS
         + UNKNOWN_PATTERNS
+        + BLOCKED_PATTERNS
     )
 
     js_patterns = json.dumps(
@@ -580,6 +631,19 @@ def check_domain_once(
         wait_until="domcontentloaded",
         timeout=NAVIGATION_TIMEOUT_MS,
     )
+
+    # Google redirects to /sorry/index when it decides the
+    # request is automated. Catch it here so we do not sit
+    # through RESULT_TIMEOUT_MS waiting for a result that
+    # will never render.
+    if "/sorry/" in page.url:
+
+        print(
+            "Google anti-bot redirect:",
+            page.url,
+        )
+
+        return "BLOCKED"
 
     result_loaded = (
         wait_for_google_result(
@@ -652,6 +716,31 @@ def check_domain(
             ]:
 
                 return status
+
+            # Back off exponentially rather than retrying
+            # after RETRY_DELAY_SECONDS, which only deepens
+            # the block.
+            if status == "BLOCKED":
+
+                if attempt < MAX_RETRIES:
+
+                    backoff = (
+                        BLOCKED_BACKOFF_SECONDS
+                        * (2 ** (attempt - 1))
+                    )
+
+                    print(
+                        "BLOCKED by Google, "
+                        f"backing off {backoff}s..."
+                    )
+
+                    time.sleep(
+                        backoff
+                    )
+
+                    continue
+
+                return "BLOCKED"
 
             # UNKNOWN may be legitimate, but retry in case
             # Google simply had not finished rendering.
@@ -940,7 +1029,8 @@ def run_browser_chunk(
             context = browser.new_context(
                 ignore_https_errors=(
                     IGNORE_HTTPS_ERRORS
-                )
+                ),
+                user_agent=USER_AGENT,
             )
 
             page = context.new_page()
@@ -951,7 +1041,28 @@ def run_browser_chunk(
 
             try:
 
-                for domain in chunk:
+                for index, domain in enumerate(
+                    chunk
+                ):
+
+                    if (
+                        index > 0
+                        and DOMAIN_DELAY_SECONDS > 0
+                    ):
+
+                        delay = random.uniform(
+                            DOMAIN_DELAY_SECONDS * 0.5,
+                            DOMAIN_DELAY_SECONDS * 1.5,
+                        )
+
+                        print(
+                            f"Waiting {delay:.1f}s "
+                            "before next domain"
+                        )
+
+                        time.sleep(
+                            delay
+                        )
 
                     status = (
                         check_domain_status(
@@ -1100,6 +1211,16 @@ def main():
     )
 
     print(
+        "Domain delay:",
+        DOMAIN_DELAY_SECONDS,
+    )
+
+    print(
+        "User agent:",
+        USER_AGENT,
+    )
+
+    print(
         "=" * 60
     )
 
@@ -1233,6 +1354,20 @@ def main():
                 "a clear SAFE/UNSAFE result."
             )
 
+        elif status == "BLOCKED":
+
+            print()
+
+            print(
+                "🚫 BLOCKED:",
+                domain,
+            )
+
+            print(
+                "Google served its anti-bot page. "
+                "This check produced no result."
+            )
+
         else:
 
             print()
@@ -1241,6 +1376,51 @@ def main():
                 "🔴 CHECK_ERROR:",
                 domain,
             )
+
+
+        # ============================================
+        # BLOCKED
+        #
+        # The monitor is blind for this domain, so alert on
+        # it instead of quietly carrying the previous state
+        # forward like UNKNOWN does.
+        # ============================================
+
+        if status == "BLOCKED":
+
+            # Same field shape as status_changed, so the
+            # Power Automate flow can parse one schema.
+            event = {
+                "event":
+                    "monitor_blocked",
+                "domain":
+                    domain,
+                "previous":
+                    previous,
+                "current":
+                    "BLOCKED",
+                "time":
+                    now_iso(),
+            }
+
+            # Webhook alert, plus FAIL_ON_ERROR handling
+            # so the Test Job fails on a block.
+            notification_events.append(
+                event
+            )
+
+            monitor_errors.append(
+                event
+            )
+
+            # Preserve previous valid state
+            if previous is not None:
+
+                new_state[
+                    domain
+                ] = previous
+
+            continue
 
 
         # ============================================
