@@ -1,0 +1,27 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "RunScheduledTask",
+      "Effect": "Allow",
+      "Action": "ecs:RunTask",
+      "Resource": [
+        "arn:aws:ecs:ap-east-1:972910065688:task-definition/portal-monitor:*"
+      ],
+      "Condition": {
+        "ArnLike": {
+          "ecs:cluster": "arn:aws:ecs:ap-east-1:972910065688:cluster/portal-monitor"
+        }
+      }
+    },
+    {
+      "Sid": "PassTaskRoles",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": [
+        "arn:aws:iam::972910065688:role/portal-monitor-ecs-execution",
+        "arn:aws:iam::972910065688:role/portal-monitor-ecs-task"
+      ]
+    }
+  ]
+}

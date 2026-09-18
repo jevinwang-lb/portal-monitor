@@ -35,6 +35,7 @@
     - [4.1 CI](#41-ci)
     - [4.2 Test CD](#42-test-cd)
     - [4.3 Production CD](#43-production-cd)
+  - [5. ECS](#5-ecs)
   - [Google Web Risk](#google-web-risk)
   - [Current Deployment Model](#current-deployment-model)
 
@@ -60,7 +61,7 @@ Power Automate Webhook
 Microsoft Teams
 ```
 
-Production 运行在 Kubernetes CronJob 中，每 10 分钟检查一次。
+Production 运行在 Kubernetes CronJob 中，每天 4 次检查（UTC 00:00 / 06:00 / 12:00 / 18:00）。
 
 ---
 
@@ -150,11 +151,24 @@ portal-monitor/
 ├── .github/
 │   └── workflows/
 │       ├── docker-publish.yml
+│       ├── docker-publish-ecr.yml
 │       ├── cd-test-job.yml
-│       └── cd-cronjob.yml
+│       ├── cd-cronjob.yml
+│       ├── cd-ecs-test.yml
+│       └── cd-ecs.yml
 │
 ├── app/
 │   └── monitor.py
+│
+├── ecs/
+│   ├── SETUP.md
+│   ├── FLOW.md
+│   ├── task-definition.json
+│   ├── task-definition-test.json
+│   ├── eventbridge-rule.json
+│   └── eventbridge-target.json
+│
+├── iam/
 │
 ├── k8s/
 │   ├── storageclass.yaml
@@ -706,7 +720,7 @@ Production：
 ```text
 Image: v1.x.x
 PVC: portal-monitor-state
-Schedule: every 10 minutes
+Schedule: 4 times per day (UTC)
 ```
 
 查看：
@@ -718,21 +732,17 @@ kubectl get cronjob portal-monitor
 当前 Schedule：
 
 ```text
-*/10 * * * *
+0 0,6,12,18 * * *
 ```
 
-即：
+即 UTC：
 
 ```text
-00
-10
-20
-30
-40
-50
+00:00
+06:00
+12:00
+18:00
 ```
-
-分钟执行。
 
 镜像由 `cd-cronjob.yml` 把 `IMAGE_PLACEHOLDER` 换成 `v1.x.x` 后 apply。不要直接 `kubectl apply -f k8s/cronjob.yaml`。
 
@@ -1128,6 +1138,25 @@ lifebytehub/portal-monitor:v1.0.0
 
 ---
 
+## 5. ECS
+
+EKS CronJob 仍可用。切 Fargate 时不改 `app/` / `Dockerfile`。
+
+一次创建： [ecs/SETUP.md](ecs/SETUP.md)  
+Action 流程： [ecs/FLOW.md](ecs/FLOW.md)
+
+| Workflow | 作用 |
+|---|---|
+| `docker-publish-ecr.yml` | 推 ECR `ap-east-1` |
+| `cd-ecs-test.yml` | 手动 `RunTask`（family `portal-monitor-test`） |
+| `cd-ecs.yml` | 手动换生产镜像并更新 EventBridge |
+
+调度：UTC 每天 4 次 `cron(0 0,6,12,18 * * ? *)`。
+
+GitHub：Secret `AWS_ROLE_ARN`；Variables `ECS_SUBNETS`、`ECS_SECURITY_GROUP`。
+
+---
+
 ## Google Web Risk
 
 最初方案也考虑直接使用 Google Web Risk API。
@@ -1189,7 +1218,7 @@ Docker Hub :sha-xxxxxxx
           ↓
  Production CronJob
           ↓
- Every 10 Minutes
+ 4 times per day (UTC)
           ↓
  Google Transparency Report
           ↓

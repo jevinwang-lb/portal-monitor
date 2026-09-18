@@ -1,0 +1,60 @@
+{
+  "family": "portal-monitor",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048",
+  "executionRoleArn": "arn:aws:iam::972910065688:role/portal-monitor-ecs-execution",
+  "taskRoleArn": "arn:aws:iam::972910065688:role/portal-monitor-ecs-task",
+  "runtimePlatform": {
+    "cpuArchitecture": "X86_64",
+    "operatingSystemFamily": "LINUX"
+  },
+  "containerDefinitions": [
+    {
+      "name": "portal-monitor",
+      "image": "972910065688.dkr.ecr.ap-east-1.amazonaws.com/portal-monitor:IMAGE_PLACEHOLDER",
+      "essential": true,
+      "environment": [
+        { "name": "DOMAINS_FILE", "value": "/app/domains.txt" },
+        { "name": "STATE_FILE", "value": "/data/status.json" },
+        { "name": "PLAYWRIGHT_HEADLESS", "value": "true" },
+        { "name": "IGNORE_HTTPS_ERRORS", "value": "false" },
+        { "name": "WEBHOOK_VERIFY_TLS", "value": "true" }
+      ],
+      "secrets": [
+        {
+          "name": "ALERT_WEBHOOK_URL",
+          "valueFrom": "arn:aws:secretsmanager:ap-east-1:972910065688:secret:portal-monitor/alert-webhook"
+        }
+      ],
+      "mountPoints": [
+        {
+          "sourceVolume": "state",
+          "containerPath": "/data"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/portal-monitor",
+          "awslogs-region": "ap-east-1",
+          "awslogs-stream-prefix": "portal-monitor"
+        }
+      }
+    }
+  ],
+  "volumes": [
+    {
+      "name": "state",
+      "efsVolumeConfiguration": {
+        "fileSystemId": "FILE_SYSTEM_ID",
+        "transitEncryption": "ENABLED",
+        "authorizationConfig": {
+          "accessPointId": "ACCESS_POINT_PROD",
+          "iam": "ENABLED"
+        }
+      }
+    }
+  ]
+}

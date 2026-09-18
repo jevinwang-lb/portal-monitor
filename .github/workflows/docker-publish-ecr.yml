@@ -1,0 +1,71 @@
+name: Build and Push ECR Image
+
+on:
+  push:
+    branches:
+      - main
+
+    tags:
+      - "v*"
+
+    paths:
+      - "app/**"
+      - "Dockerfile"
+      - "requirements.txt"
+      - "domains.txt"
+      - ".github/workflows/docker-publish-ecr.yml"
+      - "ecs/**"
+
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ap-east-1
+  AWS_ACCOUNT_ID: "972910065688"
+  ECR_REPOSITORY: portal-monitor
+
+jobs:
+  docker:
+    name: Build and Push ECR Image
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}
+          tags: |
+            type=sha,prefix=sha-
+            type=ref,event=tag
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -1,0 +1,23 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "EfsMount",
+      "Effect": "Allow",
+      "Action": [
+        "elasticfilesystem:ClientMount",
+        "elasticfilesystem:ClientWrite",
+        "elasticfilesystem:ClientRootAccess"
+      ],
+      "Resource": "arn:aws:elasticfilesystem:ap-east-1:972910065688:file-system/FILE_SYSTEM_ID",
+      "Condition": {
+        "StringEquals": {
+          "elasticfilesystem:AccessPointArn": [
+            "arn:aws:elasticfilesystem:ap-east-1:972910065688:access-point/ACCESS_POINT_PROD",
+            "arn:aws:elasticfilesystem:ap-east-1:972910065688:access-point/ACCESS_POINT_TEST"
+          ]
+        }
+      }
+    }
+  ]
+}

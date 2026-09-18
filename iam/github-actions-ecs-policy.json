@@ -1,0 +1,73 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "EcrAuth",
+      "Effect": "Allow",
+      "Action": "ecr:GetAuthorizationToken",
+      "Resource": "*"
+    },
+    {
+      "Sid": "EcrPush",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage",
+        "ecr:PutImage",
+        "ecr:InitiateLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:CompleteLayerUpload",
+        "ecr:DescribeRepositories"
+      ],
+      "Resource": "arn:aws:ecr:ap-east-1:972910065688:repository/portal-monitor"
+    },
+    {
+      "Sid": "EcsDeploy",
+      "Effect": "Allow",
+      "Action": [
+        "ecs:RegisterTaskDefinition",
+        "ecs:DescribeTaskDefinition",
+        "ecs:ListTaskDefinitions",
+        "ecs:DescribeClusters",
+        "ecs:RunTask",
+        "ecs:DescribeTasks",
+        "ecs:StopTask"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "PassTaskRoles",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": [
+        "arn:aws:iam::972910065688:role/portal-monitor-ecs-execution",
+        "arn:aws:iam::972910065688:role/portal-monitor-ecs-task",
+        "arn:aws:iam::972910065688:role/portal-monitor-events-ecs"
+      ]
+    },
+    {
+      "Sid": "EventBridgeSchedule",
+      "Effect": "Allow",
+      "Action": [
+        "events:DescribeRule",
+        "events:PutTargets",
+        "events:ListTargetsByRule"
+      ],
+      "Resource": "arn:aws:events:ap-east-1:972910065688:rule/portal-monitor-schedule"
+    },
+    {
+      "Sid": "ReadTaskLogs",
+      "Effect": "Allow",
+      "Action": [
+        "logs:GetLogEvents",
+        "logs:DescribeLogStreams",
+        "logs:FilterLogEvents"
+      ],
+      "Resource": [
+        "arn:aws:logs:ap-east-1:972910065688:log-group:/ecs/portal-monitor:*",
+        "arn:aws:logs:ap-east-1:972910065688:log-group:/ecs/portal-monitor-test:*"
+      ]
+    }
+  ]
+}

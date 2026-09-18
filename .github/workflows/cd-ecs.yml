@@ -1,0 +1,84 @@
+name: CD - ECS
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Release image tag, e.g. v1.0.1"
+        required: true
+
+env:
+  AWS_REGION: ap-east-1
+  AWS_ACCOUNT_ID: "972910065688"
+  ECR_REPOSITORY: portal-monitor
+  ECS_TASK_FAMILY: portal-monitor
+  ECS_CONTAINER_NAME: portal-monitor
+  EVENT_RULE: portal-monitor-schedule
+  EVENT_TARGET_ID: portal-monitor
+
+jobs:
+  deploy:
+    name: Update scheduled task image
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Register task definition
+        id: taskdef
+        run: |
+          IMAGE="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:${{ inputs.image_tag }}"
+          echo "Using image: $IMAGE"
+
+          aws ecs describe-task-definition \
+            --task-definition "$ECS_TASK_FAMILY" \
+            --query taskDefinition \
+            --output json \
+            | jq --arg IMAGE "$IMAGE" --arg NAME "$ECS_CONTAINER_NAME" '
+              del(
+                .taskDefinitionArn,
+                .revision,
+                .status,
+                .requiresAttributes,
+                .compatibilities,
+                .registeredAt,
+                .registeredBy,
+                .deregisteredAt
+              )
+              | .containerDefinitions = (
+                  .containerDefinitions
+                  | map(if .name == $NAME then .image = $IMAGE else . end)
+                )
+            ' > /tmp/td.json
+
+          REV=$(aws ecs register-task-definition \
+            --cli-input-json file:///tmp/td.json \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+
+          echo "arn=$REV" >> "$GITHUB_OUTPUT"
+          echo "Registered $REV"
+
+      - name: Point EventBridge at new revision
+        run: |
+          TARGETS=$(aws events list-targets-by-rule \
+            --rule "$EVENT_RULE" \
+            --output json)
+
+          echo "$TARGETS" | jq --arg ARN "${{ steps.taskdef.outputs.arn }}" --arg ID "$EVENT_TARGET_ID" '
+            .Targets
+            | map(if .Id == $ID then .EcsParameters.TaskDefinitionArn = $ARN else . end)
+            | {Rule: "'"$EVENT_RULE"'", Targets: .}
+          ' > /tmp/targets.json
+
+          aws events put-targets --cli-input-json file:///tmp/targets.json
+
+          echo "EventBridge $EVENT_RULE -> ${{ steps.taskdef.outputs.arn }}"

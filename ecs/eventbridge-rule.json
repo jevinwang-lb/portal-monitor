@@ -1,0 +1,7 @@
+{
+  "Name": "portal-monitor-schedule",
+  "ScheduleExpression": "cron(0 0,6,12,18 * * ? *)",
+  "ScheduleExpressionTimezone": "UTC",
+  "State": "ENABLED",
+  "Description": "portal-monitor Fargate task, 4 times per day UTC"
+}

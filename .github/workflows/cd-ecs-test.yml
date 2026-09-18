@@ -1,0 +1,105 @@
+name: CD - ECS Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Test image tag, e.g. sha-96b8ec3"
+        required: true
+
+env:
+  AWS_REGION: ap-east-1
+  AWS_ACCOUNT_ID: "972910065688"
+  ECR_REPOSITORY: portal-monitor
+  ECS_CLUSTER: portal-monitor
+  ECS_TASK_FAMILY: portal-monitor-test
+  ECS_CONTAINER_NAME: portal-monitor
+
+jobs:
+  test:
+    name: Run ECS test task
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Check network vars
+        run: |
+          if [ -z "${{ vars.ECS_SUBNETS }}" ] || [ -z "${{ vars.ECS_SECURITY_GROUP }}" ]; then
+            echo "Set GitHub Actions variables ECS_SUBNETS and ECS_SECURITY_GROUP"
+            exit 1
+          fi
+
+      - name: Register task definition with test image
+        id: taskdef
+        run: |
+          IMAGE="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:${{ inputs.image_tag }}"
+          echo "Using image: $IMAGE"
+
+          aws ecs describe-task-definition \
+            --task-definition "$ECS_TASK_FAMILY" \
+            --query taskDefinition \
+            --output json \
+            | jq --arg IMAGE "$IMAGE" --arg NAME "$ECS_CONTAINER_NAME" '
+              del(
+                .taskDefinitionArn,
+                .revision,
+                .status,
+                .requiresAttributes,
+                .compatibilities,
+                .registeredAt,
+                .registeredBy,
+                .deregisteredAt
+              )
+              | .containerDefinitions = (
+                  .containerDefinitions
+                  | map(if .name == $NAME then .image = $IMAGE else . end)
+                )
+            ' > /tmp/td.json
+
+          REV=$(aws ecs register-task-definition \
+            --cli-input-json file:///tmp/td.json \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+
+          echo "arn=$REV" >> "$GITHUB_OUTPUT"
+          echo "Registered $REV"
+
+      - name: Run task
+        id: run
+        run: |
+          TASK_ARN=$(aws ecs run-task \
+            --cluster "$ECS_CLUSTER" \
+            --task-definition "${{ steps.taskdef.outputs.arn }}" \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[${{ vars.ECS_SUBNETS }}],securityGroups=[${{ vars.ECS_SECURITY_GROUP }}],assignPublicIp=DISABLED}" \
+            --query 'tasks[0].taskArn' \
+            --output text)
+
+          echo "arn=$TASK_ARN" >> "$GITHUB_OUTPUT"
+          echo "Started $TASK_ARN"
+
+      - name: Wait for task
+        run: |
+          aws ecs wait tasks-stopped \
+            --cluster "$ECS_CLUSTER" \
+            --tasks "${{ steps.run.outputs.arn }}"
+
+          EXIT=$(aws ecs describe-tasks \
+            --cluster "$ECS_CLUSTER" \
+            --tasks "${{ steps.run.outputs.arn }}" \
+            --query 'tasks[0].containers[0].exitCode' \
+            --output text)
+
+          echo "exitCode=$EXIT"
+          if [ "$EXIT" != "0" ]; then
+            exit 1
+          fi

@@ -1,0 +1,20 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "events.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole",
+      "Condition": {
+        "StringEquals": {
+          "aws:SourceAccount": "972910065688"
+        },
+        "ArnLike": {
+          "aws:SourceArn": "arn:aws:events:ap-east-1:972910065688:rule/portal-monitor-schedule"
+        }
+      }
+    }
+  ]
+}

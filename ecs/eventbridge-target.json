@@ -1,0 +1,23 @@
+{
+  "Rule": "portal-monitor-schedule",
+  "Targets": [
+    {
+      "Id": "portal-monitor",
+      "Arn": "arn:aws:ecs:ap-east-1:972910065688:cluster/portal-monitor",
+      "RoleArn": "arn:aws:iam::972910065688:role/portal-monitor-events-ecs",
+      "EcsParameters": {
+        "TaskDefinitionArn": "arn:aws:ecs:ap-east-1:972910065688:task-definition/portal-monitor",
+        "TaskCount": 1,
+        "LaunchType": "FARGATE",
+        "NetworkConfiguration": {
+          "awsvpcConfiguration": {
+            "Subnets": ["SUBNET_ID_1", "SUBNET_ID_2"],
+            "SecurityGroups": ["TASK_SECURITY_GROUP_ID"],
+            "AssignPublicIp": "DISABLED"
+          }
+        },
+        "PlatformVersion": "LATEST"
+      }
+    }
+  ]
+}
