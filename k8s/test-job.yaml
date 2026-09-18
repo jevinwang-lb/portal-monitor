@@ -49,6 +49,12 @@ spec:
             - name: PYTHONUNBUFFERED
               value: "1"
 
+            - name: CONCURRENCY
+              value: "3"
+
+            - name: MAX_RETRIES
+              value: "2"
+
             - name: ALERT_WEBHOOK_URL
               valueFrom:
                 secretKeyRef:
@@ -70,7 +76,7 @@ spec:
               memory: "256Mi"
 
             limits:
-              cpu: "1000m"
+              cpu: "2000m"
               memory: "2Gi"
 
       volumes:

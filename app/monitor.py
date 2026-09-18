@@ -2,6 +2,7 @@ import json
 import os
 import ssl
 import sys
+import threading
 import time
 import urllib.parse
 import urllib.request
@@ -169,6 +170,18 @@ RETRY_DELAY_SECONDS = int(
         "RETRY_DELAY_SECONDS",
         "2",
     )
+)
+
+# Local headed Chrome stays 1.
+# Kubernetes sets CONCURRENCY>1 to overlap Google page waits.
+CONCURRENCY = max(
+    1,
+    int(
+        os.environ.get(
+            "CONCURRENCY",
+            "1",
+        )
+    ),
 )
 
 
@@ -817,6 +830,217 @@ def launch_browser(playwright):
 
 
 # ============================================================
+# Parallel checks
+# ============================================================
+
+def split_chunks(items, n):
+
+    n = max(
+        1,
+        min(
+            n,
+            len(items),
+        )
+    )
+
+    chunks = [
+        []
+        for _ in range(n)
+    ]
+
+    for i, item in enumerate(
+        items
+    ):
+
+        chunks[
+            i % n
+        ].append(
+            item
+        )
+
+    return [
+        chunk
+        for chunk in chunks
+        if chunk
+    ]
+
+
+def check_domain_status(
+    page,
+    domain,
+):
+
+    print()
+
+    print(
+        "-" * 60
+    )
+
+    print(
+        "Checking:",
+        domain,
+    )
+
+    try:
+
+        return check_domain(
+            page,
+            domain,
+        )
+
+    except Exception as e:
+
+        print(
+            "Unexpected CHECK ERROR:"
+        )
+
+        print(
+            e
+        )
+
+        return "CHECK_ERROR"
+
+
+def attach_resource_filter(page):
+
+    def handle_route(route):
+
+        if route.request.resource_type in [
+            "image",
+            "font",
+            "media",
+        ]:
+
+            route.abort()
+
+            return
+
+        route.continue_()
+
+    page.route(
+        "**/*",
+        handle_route,
+    )
+
+
+def run_browser_chunk(
+    chunk,
+    results,
+    lock,
+):
+
+    try:
+
+        with sync_playwright() as p:
+
+            browser = launch_browser(
+                p
+            )
+
+            context = browser.new_context(
+                ignore_https_errors=(
+                    IGNORE_HTTPS_ERRORS
+                )
+            )
+
+            page = context.new_page()
+
+            attach_resource_filter(
+                page
+            )
+
+            try:
+
+                for domain in chunk:
+
+                    status = (
+                        check_domain_status(
+                            page,
+                            domain,
+                        )
+                    )
+
+                    with lock:
+
+                        results[
+                            domain
+                        ] = status
+
+            finally:
+
+                context.close()
+
+                browser.close()
+
+    except Exception as e:
+
+        print(
+            "Worker failed:"
+        )
+
+        print(
+            e
+        )
+
+        with lock:
+
+            for domain in chunk:
+
+                if domain not in results:
+
+                    results[
+                        domain
+                    ] = "CHECK_ERROR"
+
+
+def collect_statuses(domains):
+
+    results = {}
+
+    lock = threading.Lock()
+
+    chunks = split_chunks(
+        domains,
+        CONCURRENCY,
+    )
+
+    if len(chunks) == 1:
+
+        run_browser_chunk(
+            chunks[0],
+            results,
+            lock,
+        )
+
+        return results
+
+    threads = []
+
+    for chunk in chunks:
+
+        thread = threading.Thread(
+            target=run_browser_chunk,
+            args=(
+                chunk,
+                results,
+                lock,
+            ),
+        )
+
+        thread.start()
+
+        threads.append(
+            thread
+        )
+
+    for thread in threads:
+
+        thread.join()
+
+    return results
+
+
+# ============================================================
 # Main
 # ============================================================
 
@@ -871,6 +1095,11 @@ def main():
     )
 
     print(
+        "Concurrency:",
+        CONCURRENCY,
+    )
+
+    print(
         "=" * 60
     )
 
@@ -914,268 +1143,166 @@ def main():
     # Playwright
     # --------------------------------------------------------
 
-    with sync_playwright() as p:
+    statuses = collect_statuses(
+        domains
+    )
 
-        browser = launch_browser(
-            p
+    for domain in domains:
+
+        status = statuses.get(
+            domain,
+            "CHECK_ERROR",
         )
 
-        context = browser.new_context(
-            ignore_https_errors=(
-                IGNORE_HTTPS_ERRORS
+
+        # --------------------------------------------
+        # Previous state
+        # --------------------------------------------
+
+        previous = old_state.get(
+            domain
+        )
+
+
+        # --------------------------------------------
+        # Output
+        # --------------------------------------------
+
+        print(
+            "Previous:",
+            (
+                previous
+                if previous is not None
+                else "(first check)"
+            ),
+        )
+
+        print(
+            "Current :",
+            status,
+        )
+
+
+        # ============================================
+        # Display current status
+        # ============================================
+
+        if status == "UNSAFE":
+
+            print()
+
+            print(
+                "🚨 UNSAFE:",
+                domain,
             )
-        )
 
-        page = context.new_page()
+        elif status == "SAFE":
 
-        try:
+            print()
 
-            for domain in domains:
+            print(
+                "✅ SAFE:",
+                domain,
+            )
 
-                print()
+        elif status == "NO_DATA":
 
-                print(
-                    "-" * 60
-                )
+            print()
 
-                print(
-                    "Checking:",
-                    domain,
-                )
+            print(
+                "⚪ NO_DATA:",
+                domain,
+            )
+
+            print(
+                "Google currently has "
+                "no available status data."
+            )
+
+        elif status == "UNKNOWN":
+
+            print()
+
+            print(
+                "🟡 UNKNOWN:",
+                domain,
+            )
+
+            print(
+                "Google did not provide "
+                "a clear SAFE/UNSAFE result."
+            )
+
+        else:
+
+            print()
+
+            print(
+                "🔴 CHECK_ERROR:",
+                domain,
+            )
 
 
-                # --------------------------------------------
-                # Check
-                # --------------------------------------------
+        # ============================================
+        # CHECK_ERROR
+        # ============================================
 
-                try:
+        if status == "CHECK_ERROR":
 
-                    status = check_domain(
-                        page,
+            monitor_errors.append(
+                {
+                    "event":
+                        "monitor_error",
+                    "domain":
                         domain,
-                    )
+                    "time":
+                        now_iso(),
+                }
+            )
 
-                except Exception as e:
-
-                    print(
-                        "Unexpected CHECK ERROR:"
-                    )
-
-                    print(
-                        e
-                    )
-
-                    status = (
-                        "CHECK_ERROR"
-                    )
-
-
-                # --------------------------------------------
-                # Previous state
-                # --------------------------------------------
-
-                previous = old_state.get(
-                    domain
-                )
-
-
-                # --------------------------------------------
-                # Output
-                # --------------------------------------------
-
-                print(
-                    "Previous:",
-                    (
-                        previous
-                        if previous is not None
-                        else "(first check)"
-                    ),
-                )
-
-                print(
-                    "Current :",
-                    status,
-                )
-
-
-                # ============================================
-                # Display current status
-                # ============================================
-
-                if status == "UNSAFE":
-
-                    print()
-
-                    print(
-                        "🚨 UNSAFE:",
-                        domain,
-                    )
-
-                elif status == "SAFE":
-
-                    print()
-
-                    print(
-                        "✅ SAFE:",
-                        domain,
-                    )
-
-                elif status == "NO_DATA":
-
-                    print()
-
-                    print(
-                        "⚪ NO_DATA:",
-                        domain,
-                    )
-
-                    print(
-                        "Google currently has "
-                        "no available status data."
-                    )
-
-                elif status == "UNKNOWN":
-
-                    print()
-
-                    print(
-                        "🟡 UNKNOWN:",
-                        domain,
-                    )
-
-                    print(
-                        "Google did not provide "
-                        "a clear SAFE/UNSAFE result."
-                    )
-
-                else:
-
-                    print()
-
-                    print(
-                        "🔴 CHECK_ERROR:",
-                        domain,
-                    )
-
-
-                # ============================================
-                # CHECK_ERROR
-                # ============================================
-
-                if status == "CHECK_ERROR":
-
-                    monitor_errors.append(
-                        {
-                            "event":
-                                "monitor_error",
-                            "domain":
-                                domain,
-                            "time":
-                                now_iso(),
-                        }
-                    )
-
-                    # Preserve previous valid state
-                    if previous is not None:
-
-                        new_state[
-                            domain
-                        ] = previous
-
-                    continue
-
-
-                # ============================================
-                # UNKNOWN / NO_DATA
-                #
-                # Neither is considered a safety-state change.
-                # Do not overwrite an existing valid state.
-                # ============================================
-
-                if status in [
-                    "UNKNOWN",
-                    "NO_DATA",
-                ]:
-
-                    if previous is not None:
-
-                        new_state[
-                            domain
-                        ] = previous
-
-                    continue
-
-
-                # ============================================
-                # First valid SAFE / UNSAFE check
-                # ============================================
-
-                if previous is None:
-
-                    new_state[
-                        domain
-                    ] = status
-
-                    # First check is already UNSAFE
-                    if status == "UNSAFE":
-
-                        event = {
-                            "event":
-                                "status_changed",
-                            "domain":
-                                domain,
-                            "previous":
-                                None,
-                            "current":
-                                "UNSAFE",
-                            "time":
-                                now_iso(),
-                        }
-
-                        notification_events.append(
-                            event
-                        )
-
-                        print(
-                            "🚨 FIRST CHECK "
-                            "AND UNSAFE"
-                        )
-
-                    else:
-
-                        print(
-                            "First check: "
-                            "no notification"
-                        )
-
-                    continue
-
-
-                # ============================================
-                # Save valid SAFE / UNSAFE state
-                # ============================================
+            # Preserve previous valid state
+            if previous is not None:
 
                 new_state[
                     domain
-                ] = status
+                ] = previous
+
+            continue
 
 
-                # ============================================
-                # No state change
-                # ============================================
+        # ============================================
+        # UNKNOWN / NO_DATA
+        #
+        # Neither is considered a safety-state change.
+        # Do not overwrite an existing valid state.
+        # ============================================
 
-                if previous == status:
+        if status in [
+            "UNKNOWN",
+            "NO_DATA",
+        ]:
 
-                    print(
-                        "No status change."
-                    )
+            if previous is not None:
 
-                    continue
+                new_state[
+                    domain
+                ] = previous
+
+            continue
 
 
-                # ============================================
-                # SAFE <-> UNSAFE
-                # ============================================
+        # ============================================
+        # First valid SAFE / UNSAFE check
+        # ============================================
+
+        if previous is None:
+
+            new_state[
+                domain
+            ] = status
+
+            # First check is already UNSAFE
+            if status == "UNSAFE":
 
                 event = {
                     "event":
@@ -1183,9 +1310,9 @@ def main():
                     "domain":
                         domain,
                     "previous":
-                        previous,
+                        None,
                     "current":
-                        status,
+                        "UNSAFE",
                     "time":
                         now_iso(),
                 }
@@ -1194,23 +1321,76 @@ def main():
                     event
                 )
 
-                print()
-
                 print(
-                    "🔔 STATUS CHANGED:"
+                    "🚨 FIRST CHECK "
+                    "AND UNSAFE"
                 )
 
+            else:
+
                 print(
-                    f"   {previous} "
-                    f"-> {status}"
+                    "First check: "
+                    "no notification"
                 )
 
+            continue
 
-        finally:
 
-            context.close()
+        # ============================================
+        # Save valid SAFE / UNSAFE state
+        # ============================================
 
-            browser.close()
+        new_state[
+            domain
+        ] = status
+
+
+        # ============================================
+        # No state change
+        # ============================================
+
+        if previous == status:
+
+            print(
+                "No status change."
+            )
+
+            continue
+
+
+        # ============================================
+        # SAFE <-> UNSAFE
+        # ============================================
+
+        event = {
+            "event":
+                "status_changed",
+            "domain":
+                domain,
+            "previous":
+                previous,
+            "current":
+                status,
+            "time":
+                now_iso(),
+        }
+
+        notification_events.append(
+            event
+        )
+
+        print()
+
+        print(
+            "🔔 STATUS CHANGED:"
+        )
+
+        print(
+            f"   {previous} "
+            f"-> {status}"
+        )
+
+
 
 
     # ========================================================
